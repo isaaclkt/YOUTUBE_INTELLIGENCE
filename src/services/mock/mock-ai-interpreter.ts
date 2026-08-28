@@ -4,6 +4,11 @@ import type {
   AIInterpreter,
   ComputedMetrics,
 } from "../contracts";
+import {
+  buildAngles,
+  buildRecommendationSummary,
+  buildTitles,
+} from "./content-templates";
 import { simulateLatency } from "./simulate";
 
 function formatGrowth(growthRate: number): string {
@@ -50,32 +55,28 @@ function trendPoint(metrics: ComputedMetrics): string {
 }
 
 /**
- * MOCK da etapa de interpretação por IA.
+ * MOCK da etapa de interpretação por IA — e fallback automático da
+ * implementação real (src/services/real/ai-interpreter).
  *
- * Simula o que um LLM fará na fase real: receber os números JÁ
- * CALCULADOS (demanda, crescimento, concorrência, saturação) e
- * devolver uma explicação em linguagem natural. Repare que TODO
- * número citado nos textos vem de `metrics`/`scores` — nada é
- * inventado aqui, e o contrato exige o mesmo da implementação real.
+ * Simula o que o LLM faz na fase real: receber os números JÁ CALCULADOS
+ * e devolver explicação + conteúdo criativo. TODO número citado nos
+ * textos vem de `metrics`/`scores` — nada é inventado aqui, e o contrato
+ * exige o mesmo da implementação real.
  */
 export class MockAIInterpreter implements AIInterpreter {
   async interpret(input: AIInterpretationInput): Promise<AIInterpretation> {
     await simulateLatency(300, 600);
     const { metrics, scores, verdict, topic } = input;
 
-    const whyPoints = [
-      demandPoint(metrics),
-      competitionPoint(metrics),
-      trendPoint(metrics),
-    ];
-
-    const summary =
-      verdict === "YES"
-        ? `"${topic.query}" combina bons sinais: score de oportunidade ${scores.opportunity}/100. O momento favorece quem entrar com um recorte específico.`
-        : verdict === "MAYBE"
-          ? `"${topic.query}" tem sinais mistos: score de oportunidade ${scores.opportunity}/100. Dá para funcionar, mas a escolha do ângulo pesa mais que o tema em si.`
-          : `"${topic.query}" enfrenta sinais desfavoráveis: score de oportunidade ${scores.opportunity}/100. O esforço tende a render pouco neste momento.`;
-
-    return { whyPoints, summary };
+    return {
+      whyPoints: [
+        demandPoint(metrics),
+        competitionPoint(metrics),
+        trendPoint(metrics),
+      ],
+      angles: buildAngles(topic, metrics, scores),
+      titles: buildTitles(topic),
+      recommendationSummary: buildRecommendationSummary(topic, scores, verdict),
+    };
   }
 }

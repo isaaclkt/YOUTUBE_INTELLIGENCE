@@ -1,4 +1,5 @@
 import type { Recommendation } from "@/domain";
+import { formatPercent } from "@/lib/format";
 import { VERDICT_META } from "@/lib/verdict";
 import { Card } from "../card";
 import { ScoreBar } from "../score-bar";
@@ -20,12 +21,12 @@ export function RecommendationCard({
         </p>
       </div>
       <div className="mt-5">
-        <div className="flex items-baseline justify-between">
+        <div className="flex items-baseline justify-between gap-3">
           <p className="text-xs font-medium uppercase tracking-widest text-zinc-500">
             Confiança da análise
           </p>
-          <p className="text-sm font-semibold tabular-nums text-zinc-300">
-            {recommendation.confidence}%
+          <p className="shrink-0 whitespace-nowrap text-sm font-semibold tabular-nums text-zinc-300">
+            {formatPercent(recommendation.confidence)}
           </p>
         </div>
         <div className="mt-2">

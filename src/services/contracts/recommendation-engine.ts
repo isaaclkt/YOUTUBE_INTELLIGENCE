@@ -10,7 +10,8 @@ export interface RecommendationInput {
 
 /**
  * Etapa 7 (final) do pipeline: RECOMENDAÇÃO.
- * Consolida veredito + confiança + próximo passo em um texto acionável.
+ * Monta a recomendação final: veredito e confiança vêm dos números
+ * (ScoringEngine); o texto vem da camada de IA (interpretation).
  * Nunca promete viralização — a decisão final é sempre do usuário.
  */
 export interface RecommendationEngine {

@@ -1,5 +1,8 @@
+import "server-only";
+
 import type { ServiceContainer } from "./contracts";
 import { createMockServices } from "./mock";
+import { createRealServices } from "./real";
 
 /**
  * ============================================================
@@ -8,6 +11,11 @@ import { createMockServices } from "./mock";
  * Toda a aplicação obtém o motor por getServices(). A escolha
  * mock/real acontece SOMENTE aqui, via SERVICES_MODE (.env).
  * A UI e as rotas nunca importam `./mock` ou `./real` diretamente.
+ *
+ * Modo "real" hoje: IA de interpretação via Anthropic (com fallback
+ * automático para o mock sem chave/erro); demais serviços mock.
+ * O `import "server-only"` garante que nada disto (nem a chave da
+ * API) chegue a um bundle de cliente.
  * ============================================================
  */
 
@@ -15,15 +23,6 @@ export type ServicesMode = "mock" | "real";
 
 export function getServicesMode(): ServicesMode {
   return process.env.SERVICES_MODE === "real" ? "real" : "mock";
-}
-
-function createRealServices(): ServiceContainer {
-  // Fase 1: intencionalmente não implementado.
-  throw new Error(
-    "SERVICES_MODE=real ainda não está disponível. " +
-      "Veja src/services/real/README.md para o que precisa ser conectado, " +
-      "ou volte para SERVICES_MODE=mock no .env."
-  );
 }
 
 let container: ServiceContainer | null = null;

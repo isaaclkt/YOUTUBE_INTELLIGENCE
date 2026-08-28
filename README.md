@@ -53,7 +53,8 @@ src/
 │   │                     # AIInterpreter, RecommendationEngine
 │   ├── mock/             # implementações mock realistas (determinísticas)
 │   │   └── formulas.ts   # ⚠️ fórmulas de score MOCK, isoladas e comentadas
-│   ├── real/             # READMEs do que precisa ser conectado
+│   ├── real/             # implementações reais (AIInterpreter via
+│   │                     # Anthropic) + READMEs do que falta conectar
 │   ├── index.ts          # PONTO ÚNICO de injeção (SERVICES_MODE no .env)
 │   └── pipeline.ts       # coleta → normalização → métricas → scoring
 │                         # → oportunidades → interpretação IA → recomendação
@@ -78,9 +79,17 @@ O mapa completo de onde cada número da UI virá na fase real está em
 
 ### Trocar mock ↔ real
 
-`SERVICES_MODE` no `.env` (`"mock"` | `"real"`). O modo `real` ainda não
-existe — `src/services/real/README.md` documenta o que conectar
-(YouTube Data API v3, LLM, fonte de tendências).
+`SERVICES_MODE` no `.env` (`"mock"` | `"real"`, padrão `real`). No modo
+`real`, a **interpretação por IA usa a API da Anthropic**
+(`claude-sonnet-5`): pontos do "Por quê", ângulos específicos do tema,
+títulos e recomendação vêm do Claude — sempre citando os números do
+ScoringEngine, nunca alterando-os. Sem `ANTHROPIC_API_KEY` (ou em caso
+de erro na chamada), o sistema **cai no mock automaticamente** sem
+quebrar a UI. Coleta/métricas continuam mock —
+`src/services/real/README.md` documenta o que falta conectar.
+
+Para ativar a IA: preencha `ANTHROPIC_API_KEY=` no arquivo **`.env.local`**
+(nunca commitado) e reinicie o dev server.
 
 ### Migrar SQLite → Postgres
 
@@ -102,14 +111,15 @@ muda.
 | Tema escuro responsivo (desktop primeiro)                | **IMPLEMENTADO** |
 | Pipeline do motor (7 etapas, contratos + injeção)        | **IMPLEMENTADO** |
 | API `POST /api/analyses`                                 | **IMPLEMENTADO** |
+| Interpretação por IA (Anthropic `claude-sonnet-5`, saída validada, fallback p/ mock) | **IMPLEMENTADO** |
 | Coleta de dados (YouTube Data API)                       | **MOCK**         |
 | Fonte de tendências (série de 12 semanas, sinais/país)   | **MOCK**         |
 | Métricas e normalização                                  | **MOCK**         |
 | Fórmulas de score (`src/services/mock/formulas.ts`)      | **MOCK**         |
-| Interpretação por IA (explicação dos números)            | **MOCK**         |
-| Ângulos, títulos e ranking de mercados                   | **MOCK**         |
+| Ângulos/títulos sem chave da Anthropic (templates)       | **MOCK**         |
+| Ranking de mercados                                      | **MOCK**         |
 | Latência simulada (skeleton visível)                     | **MOCK**         |
-| Serviços reais (`SERVICES_MODE=real`)                    | **PLANEJADO**    |
+| Coleta real (`data-collector` + `trends` em `services/real`) | **PLANEJADO** |
 | Autenticação de usuários                                 | **PLANEJADO**    |
 | Postgres (migração do SQLite)                            | **PLANEJADO**    |
 | Pagamentos / planos                                      | **PLANEJADO**    |

@@ -1,25 +1,24 @@
-# Serviços REAIS — ainda não implementados
+# Serviços REAIS
 
-Esta pasta receberá as implementações de produção dos contratos
-definidos em `src/services/contracts`. Nada aqui é importado hoje.
+Implementações de produção dos contratos de `src/services/contracts`.
+`index.ts` monta o contêiner do modo `SERVICES_MODE="real"`: o que já
+existe de real entra; o restante reusa o mock até ser conectado.
 
-## Como ativar quando estiver pronto
+## Estado atual
 
-1. Implemente os contratos nas subpastas (veja o README de cada uma).
-2. Crie um `createRealServices(): ServiceContainer` (espelhando
-   `src/services/mock/index.ts`).
-3. Ligue-o em `src/services/index.ts` (único ponto de injeção).
-4. Troque `SERVICES_MODE="real"` no `.env`.
+| Subpasta          | Serviço            | Fonte externa                             | Status          |
+| ----------------- | ------------------ | ----------------------------------------- | --------------- |
+| `ai-interpreter/` | `AIInterpreter`    | Anthropic API (`claude-sonnet-5`)         | **IMPLEMENTADO** (fallback automático p/ mock) |
+| `data-collector/` | `DataCollector`    | YouTube Data API v3 + fonte de tendências | PLANEJADO       |
+| `trends/`         | (parte da coleta)  | Google Trends / SerpAPI / DataForSEO      | PLANEJADO       |
+
+## Como conectar os próximos
+
+1. Implemente o contrato na subpasta (veja o README de cada uma).
+2. Substitua a entrada correspondente em `./index.ts`
+   (`createRealServices`).
 
 A UI e o pipeline **não mudam** — eles só conhecem os contratos.
-
-## O que precisa ser conectado
-
-| Subpasta          | Serviço            | Fonte externa                            |
-| ----------------- | ------------------ | ---------------------------------------- |
-| `data-collector/` | `DataCollector`    | YouTube Data API v3 + fonte de tendências |
-| `trends/`         | (parte da coleta)  | Google Trends / SerpAPI / DataForSEO     |
-| `ai-interpreter/` | `AIInterpreter`    | LLM (ex.: Claude API)                    |
 
 `MetricsEngine`, `ScoringEngine`, `OpportunityEngine` e
 `RecommendationEngine` são cálculo/composição local: podem começar

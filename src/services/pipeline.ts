@@ -8,8 +8,9 @@ import { getServices } from "./index";
  *          → interpretação IA → recomendação
  *
  * Este arquivo NÃO sabe se os serviços são mock ou reais; ele só
- * conhece os contratos. A IA (etapa 6) recebe números prontos das
- * etapas 3–4 e devolve explicação — nunca calcula nada.
+ * conhece os contratos. A divisão de responsabilidades é fixa:
+ * os engines produzem TODOS os números; a camada de IA (etapa 6)
+ * produz TODOS os textos — explicando os números, nunca os alterando.
  */
 export async function runAnalysisPipeline(topic: Topic): Promise<AnalysisResult> {
   const services = getServices();
@@ -27,19 +28,11 @@ export async function runAnalysisPipeline(topic: Topic): Promise<AnalysisResult>
   const scores = services.scoringEngine.score(metrics);
   const verdict = services.scoringEngine.verdictFor(scores);
 
-  // 5. Oportunidades (mercados, ângulos, títulos)
+  // 5. Oportunidades numéricas (ranking de mercados)
   const markets = await services.opportunityEngine.rankMarkets(topic, normalized);
-  const opportunities = await services.opportunityEngine.findAngles(
-    topic,
-    metrics,
-    scores
-  );
-  const titles = await services.opportunityEngine.suggestTitles(
-    topic,
-    opportunities
-  );
 
-  // 6. Interpretação IA (explica os números; não os inventa)
+  // 6. Interpretação IA: todo o conteúdo em linguagem natural
+  //    (por quê, ângulos, títulos, texto da recomendação)
   const interpretation = await services.aiInterpreter.interpret({
     topic,
     metrics,
@@ -47,7 +40,7 @@ export async function runAnalysisPipeline(topic: Topic): Promise<AnalysisResult>
     verdict,
   });
 
-  // 7. Recomendação final
+  // 7. Recomendação final (montagem: números + texto da IA)
   const recommendation = await services.recommendationEngine.recommend({
     topic,
     scores,
@@ -60,8 +53,8 @@ export async function runAnalysisPipeline(topic: Topic): Promise<AnalysisResult>
     verdict,
     whyPoints: interpretation.whyPoints,
     markets,
-    opportunities,
-    titles,
+    opportunities: interpretation.angles,
+    titles: interpretation.titles,
     recommendation,
   };
 }
