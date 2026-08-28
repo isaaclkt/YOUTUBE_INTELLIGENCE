@@ -1,0 +1,36 @@
+// ============================================================
+// Fase 1: SQLite local (arquivo prisma/dev.db).
+//
+// MIGRAÇÃO FUTURA PARA POSTGRES:
+//   1. Trocar `provider = "sqlite"` por `provider = "postgresql"`.
+//   2. Apontar DATABASE_URL (.env) para o banco Postgres.
+//   3. Opcional: trocar o campo `resultJson String` por `resultJson Json`.
+//   4. Rodar `npx prisma migrate dev`.
+// Nenhum outro código da aplicação precisa mudar — a persistência
+// passa toda por src/lib/repository.ts.
+// ============================================================
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "sqlite"
+  url      = env("DATABASE_URL")
+}
+
+// Uma análise executada pelo motor. Os campos denormalizados
+// (verdict, opportunityScore) existem para listar o histórico
+// sem precisar desserializar `resultJson`.
+model Analysis {
+  id               String   @id @default(cuid())
+  query            String
+  language         String
+  country          String
+  verdict          String // "YES" | "MAYBE" | "NO"
+  opportunityScore Int
+  resultJson       String // AnalysisResult serializado (JSON)
+  createdAt        DateTime @default(now())
+
+  @@index([createdAt])
+}
