@@ -37,14 +37,27 @@ export class MockDataCollector implements DataCollector {
     const videoCount = Math.round(
       10 ** between(rng, 2.6, 4.4) * (0.4 + heat * 1.8)
     );
+    const sampleSize = Math.round(between(rng, 45, 100));
     const avgViews = Math.round(10 ** between(rng, 3.0, 4.8) * (0.5 + heat));
     const medianViews = Math.round(avgViews * between(rng, 0.18, 0.45));
     const avgEngagementRate = between(rng, 0.015, 0.09);
-    const channelCount = Math.max(
-      12,
-      Math.round(videoCount * between(rng, 0.02, 0.08))
+    // VPH (views/hora): temas quentes acumulam views mais rápido.
+    const medianVph =
+      Math.round(10 ** between(rng, -0.5, 2.3) * (0.5 + heat * 1.5) * 10) / 10;
+    const recentMedianVph =
+      Math.round(medianVph * between(rng, 0.6, 1.8) * 10) / 10;
+    const outlierRatio = clamp(between(rng, 0.02, 0.2) + heat * 0.05, 0, 0.35);
+    // Canais distintos na amostra de topo (mesma semântica do coletor real).
+    const channelCount = Math.round(
+      clamp(sampleSize * between(rng, 0.3, 0.8), 5, 100)
     );
     const dominantChannelShare = between(rng, 0.08, 0.55);
+    const strongChannelShare = clamp(
+      between(rng, 0.1, 0.6) + heat * 0.25,
+      0,
+      0.95
+    );
+    const medianSubscribers = Math.round(10 ** between(rng, 3.2, 5.8));
     const recentUploadsPerWeek = Math.max(
       2,
       Math.round(videoCount * between(rng, 0.001, 0.006))
@@ -83,15 +96,22 @@ export class MockDataCollector implements DataCollector {
       topic,
       video: {
         videoCount,
+        sampleSize,
         avgViews,
         medianViews,
         avgEngagementRate,
+        medianVph,
+        recentMedianVph,
+        outlierRatio,
         channelCount,
         dominantChannelShare,
+        strongChannelShare,
+        medianSubscribers,
         recentUploadsPerWeek,
       },
       trendSeries,
       countrySignals,
+      sources: { videoStats: "mock", trends: "mock" },
       collectedAt: new Date().toISOString(),
     };
   }

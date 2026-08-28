@@ -8,19 +8,47 @@ import type { CountryCode, Topic } from "@/domain";
  * (mock ou real) podem mudar; os formatos abaixo, não.
  */
 
-/** Estatísticas agregadas de vídeos sobre o tema (fase real: YouTube Data API). */
+/** De onde veio cada bloco de dados coletados. */
+export type DataSourceKind = "real" | "mock";
+
+export interface RawDataSources {
+  /** Estatísticas de vídeos/canais (real = YouTube Data API v3). */
+  videoStats: DataSourceKind;
+  /** Série de tendência e sinais por país (real ainda não conectado). */
+  trends: DataSourceKind;
+}
+
+/**
+ * Estatísticas agregadas de vídeos sobre o tema, derivadas de uma
+ * amostra dos resultados de topo (real: YouTube Data API v3).
+ */
 export interface RawVideoStats {
-  /** Total estimado de vídeos publicados sobre o tema. */
+  /** Total estimado de vídeos publicados sobre o tema (ordem de grandeza). */
   videoCount: number;
+  /** Vídeos efetivamente analisados na amostra. */
+  sampleSize: number;
   avgViews: number;
   medianViews: number;
   /** Taxa média de engajamento (likes+comentários / views), 0–1. */
   avgEngagementRate: number;
-  /** Canais ativos no tema. */
+  /** VPH mediano da amostra (views por hora desde a publicação). */
+  medianVph: number;
+  /** VPH mediano só dos vídeos recentes (últimos 90 dias). */
+  recentMedianVph: number;
+  /**
+   * Fração da amostra performando muito acima da média do próprio
+   * canal (outliers). Alta = tema com espaço para vídeos estourarem.
+   */
+  outlierRatio: number;
+  /** Canais distintos na amostra de topo. */
   channelCount: number;
-  /** Fatia de views do canal dominante, 0–1. Alto = mercado concentrado. */
+  /** Fatia de views do canal dominante na amostra, 0–1. */
   dominantChannelShare: number;
-  /** Novos vídeos por semana no tema. */
+  /** Fração da amostra vinda de canais fortes (muitos inscritos), 0–1. */
+  strongChannelShare: number;
+  /** Inscritos medianos dos canais da amostra (0 = desconhecido). */
+  medianSubscribers: number;
+  /** Novos vídeos por semana no tema (cadência dos uploads recentes). */
   recentUploadsPerWeek: number;
 }
 
@@ -48,6 +76,8 @@ export interface RawTopicData {
   /** Série das últimas 12 semanas, da mais antiga para a mais recente. */
   trendSeries: RawTrendPoint[];
   countrySignals: RawCountrySignal[];
+  /** Origem de cada bloco (alimenta os selos "estimado" da UI). */
+  sources: RawDataSources;
   /** ISO 8601. */
   collectedAt: string;
 }
@@ -66,6 +96,8 @@ export interface NormalizedData {
   /** Qualidade/volume dos dados coletados, 0–1. Alimenta o Confidence. */
   dataQuality: number;
   countrySignals: RawCountrySignal[];
+  /** Origem dos dados, repassada da coleta. */
+  sources: RawDataSources;
 }
 
 /** Saída da etapa de MÉTRICAS — números que a IA interpreta (nunca inventa). */

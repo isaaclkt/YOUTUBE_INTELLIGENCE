@@ -91,6 +91,14 @@ quebrar a UI. Coleta/métricas continuam mock —
 Para ativar a IA: preencha `ANTHROPIC_API_KEY=` no arquivo **`.env.local`**
 (nunca commitado) e reinicie o dev server.
 
+Para ativar a **coleta real do YouTube**: preencha `YOUTUBE_API_KEY=` no
+mesmo `.env.local` (Google Cloud Console, YouTube Data API v3 habilitada)
+e reinicie. Uma análise nova custa **~204 unidades de quota** (2×
+`search.list` = 200 + `videos.list`/`channels.list` ≈ 4); com o cache de
+24h em SQLite, repetir um tema custa 0 — dá ~49 análises novas/dia no
+tier gratuito de 10.000 unidades. Tendência continua estimada (selo
+"estimado" na UI) até a fonte de tendências ser conectada.
+
 ### Migrar SQLite → Postgres
 
 1. `prisma/schema.prisma`: `provider = "postgresql"`
@@ -112,9 +120,11 @@ muda.
 | Pipeline do motor (7 etapas, contratos + injeção)        | **IMPLEMENTADO** |
 | API `POST /api/analyses`                                 | **IMPLEMENTADO** |
 | Interpretação por IA (Anthropic `claude-sonnet-5`, saída validada, fallback p/ mock) | **IMPLEMENTADO** |
-| Coleta de dados (YouTube Data API)                       | **MOCK**         |
-| Fonte de tendências (série de 12 semanas, sinais/país)   | **MOCK**         |
-| Métricas e normalização                                  | **MOCK**         |
+| Coleta de dados (YouTube Data API v3: views, VPH, outliers, canais/inscritos; cache 24h; fallback p/ mock) | **IMPLEMENTADO** |
+| Demand/Competition/Saturation com dados reais            | **IMPLEMENTADO** |
+| Selo "estimado" nas métricas sem fonte real              | **IMPLEMENTADO** |
+| Fonte de tendências (série de 12 semanas, sinais/país)   | **MOCK** (selo "estimado") |
+| Pesos da normalização (a recalibrar com histórico real)  | **MOCK**         |
 | Fórmulas de score (`src/services/mock/formulas.ts`)      | **MOCK**         |
 | Ângulos/títulos sem chave da Anthropic (templates)       | **MOCK**         |
 | Ranking de mercados                                      | **MOCK**         |

@@ -1,4 +1,4 @@
-import type { Scores } from "@/domain";
+import type { MetricSourceMap, Scores } from "@/domain";
 
 /** Chaves das 4 métricas exibidas na tela de resultado. */
 export type MetricKey = keyof Pick<
@@ -51,6 +51,11 @@ export const METRIC_META: readonly MetricMeta[] = [
 export const METRIC_GOOD_THRESHOLD = 60;
 /** A partir deste valor favorável a barra fica âmbar (abaixo: vermelha). */
 export const METRIC_WARN_THRESHOLD = 35;
+
+/** A análise usou dados reais do YouTube? (decide a copy do rodapé) */
+export function usesRealVideoData(sources: MetricSourceMap | undefined): boolean {
+  return sources?.demand === "real";
+}
 
 /**
  * Classe de cor da barra de uma métrica 0–100.

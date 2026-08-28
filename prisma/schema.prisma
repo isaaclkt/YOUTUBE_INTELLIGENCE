@@ -19,6 +19,17 @@ datasource db {
   url      = env("DATABASE_URL")
 }
 
+// Cache de respostas de APIs externas (YouTube Data API), TTL 24h.
+// Poupa quota: análises repetidas do mesmo tema não gastam unidades.
+model ApiCache {
+  key       String   @id // sha256 do endpoint+parâmetros (sem a chave da API)
+  payload   String // JSON da resposta
+  createdAt DateTime @default(now())
+  expiresAt DateTime
+
+  @@index([expiresAt])
+}
+
 // Uma análise executada pelo motor. Os campos denormalizados
 // (verdict, opportunityScore) existem para listar o histórico
 // sem precisar desserializar `resultJson`.

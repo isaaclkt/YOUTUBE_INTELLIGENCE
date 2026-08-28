@@ -12,15 +12,15 @@ function mean(values: readonly number[]): number {
 }
 
 /**
- * MOCK das etapas de normalização e métricas.
- * Os cálculos são plausíveis (escalas logarítmicas para volumes,
- * comparação início/fim da série para crescimento), mas os pesos
- * são demonstrativos — mesma ressalva de formulas.ts.
+ * Etapas de normalização e métricas. A matemática é a mesma para dados
+ * mock e reais (o coletor real produz os mesmos campos de RawVideoStats),
+ * mas os PESOS são demonstrativos — recalibrar quando houver histórico
+ * de análises reais para validar (mesma ressalva de formulas.ts).
  */
 export class MockMetricsEngine implements MetricsEngine {
   normalize(raw: RawTopicData): NormalizedData {
+    const v = raw.video;
     const interests = raw.trendSeries.map((p) => p.interest);
-    const meanInterest = mean(interests);
     const firstQuarter = mean(interests.slice(0, 4));
     const lastQuarter = mean(interests.slice(-4));
 
@@ -31,26 +31,38 @@ export class MockMetricsEngine implements MetricsEngine {
       1
     );
 
+    // Demanda = engajamento recente: VPH mediano dos vídeos novos pesa
+    // mais; engajamento e views médias completam o sinal.
     const demandSignal = clamp01(
-      (meanInterest / 100) * 0.6 +
-        Math.min(1, Math.log10(raw.video.avgViews + 1) / 6) * 0.4
+      Math.min(1, Math.log10(v.recentMedianVph + 1) / 3) * 0.5 +
+        Math.min(1, v.avgEngagementRate / 0.08) * 0.25 +
+        Math.min(1, Math.log10(v.avgViews + 1) / 6) * 0.25
     );
 
+    // Concorrência = quanto os fortes dominam: share de canais grandes,
+    // concentração no dominante e porte mediano. Outliers frequentes
+    // (canais pequenos estourando) ALIVIAM a pressão competitiva.
     const competitionSignal = clamp01(
-      Math.min(1, Math.log10(raw.video.channelCount + 1) / 4.5) * 0.5 +
-        raw.video.dominantChannelShare * 0.3 +
-        Math.min(1, raw.video.recentUploadsPerWeek / 250) * 0.2
+      v.strongChannelShare * 0.35 +
+        v.dominantChannelShare * 0.2 +
+        Math.min(1, Math.log10(v.medianSubscribers + 1) / 6) * 0.2 +
+        Math.min(1, Math.log10(v.channelCount + 1) / 2) * 0.1 +
+        (1 - Math.min(1, v.outlierRatio / 0.15)) * 0.15
     );
 
+    // Saturação = volume acumulado + cadência de novos uploads;
+    // poucos outliers = conteúdo repetido sem espaço para furar.
     const saturationSignal = clamp01(
-      Math.min(1, Math.log10(raw.video.videoCount + 1) / 5.5) * 0.6 +
-        Math.min(1, raw.video.recentUploadsPerWeek / 250) * 0.4
+      Math.min(1, Math.log10(v.videoCount + 1) / 5.5) * 0.45 +
+        Math.min(1, v.recentUploadsPerWeek / 250) * 0.35 +
+        (1 - Math.min(1, v.outlierRatio / 0.15)) * 0.2
     );
 
-    // Mais vídeos e série completa = mais base para confiar na análise.
+    // Amostra maior, volume maior e série completa = mais confiança.
     const dataQuality = clamp01(
-      Math.min(1, Math.log10(raw.video.videoCount + 1) / 4) * 0.5 +
-        (raw.trendSeries.length / 12) * 0.5
+      Math.min(1, v.sampleSize / 60) * 0.4 +
+        Math.min(1, Math.log10(v.videoCount + 1) / 4) * 0.3 +
+        (raw.trendSeries.length / 12) * 0.3
     );
 
     return {
@@ -61,6 +73,7 @@ export class MockMetricsEngine implements MetricsEngine {
       saturationSignal,
       dataQuality,
       countrySignals: raw.countrySignals,
+      sources: raw.sources,
     };
   }
 

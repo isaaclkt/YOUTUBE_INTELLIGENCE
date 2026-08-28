@@ -14,8 +14,10 @@ export type {
 export type { ScoringEngine } from "./scoring-engine";
 export type {
   ComputedMetrics,
+  DataSourceKind,
   NormalizedData,
   RawCountrySignal,
+  RawDataSources,
   RawTopicData,
   RawTrendPoint,
   RawVideoStats,

@@ -4,6 +4,13 @@ Cada número exibido na UI, de onde ele virá **de verdade** quando a fase mock
 for substituída (`SERVICES_MODE=real`). Complementa os READMEs de
 `src/services/real/`.
 
+> **Estado (atualizado):** a coleta de vídeos/canais via YouTube Data API v3
+> está **IMPLEMENTADA** (`src/services/real/data-collector/`) — VPH,
+> outliers, concorrência e o proxy de demanda por engajamento já usam dados
+> reais quando `YOUTUBE_API_KEY` está configurada, com cache de 24h e
+> fallback para mock. **Tendência e sinais por país seguem mock** (selo
+> "estimado" na UI) até a fonte de tendências ser contratada.
+
 **Legenda de status:**
 
 | Status                  | Significado                                                        |
@@ -121,9 +128,9 @@ Interno — SQLite (fase 1) / Postgres (futuro). Nenhuma fonte externa.
 
 | Métrica          | Receita                                                                | Status |
 | ---------------- | ---------------------------------------------------------------------- | ------ |
-| **VPH médio**    | `viewCount ÷ horas desde publishedAt` — velocidade média de vida       | 🔧     |
+| **VPH médio**    | `viewCount ÷ horas desde publishedAt` — velocidade média de vida       | 🔧 implementado |
 | **VPH atual**    | Exige ≥2 snapshots próprios (polling periódico) ou fornecedor terceiro | ⚠️ **SEM FONTE DEFINIDA** — a API só dá o total acumulado |
-| **Outlier score**| `viewCount do vídeo ÷ mediana de views dos vídeos recentes do canal` (playlist de uploads) — detecta vídeo fora da curva | 🔧 |
+| **Outlier score**| `viewCount do vídeo ÷ média de views por vídeo do canal` (channels.list, sem quota extra) — detecta vídeo fora da curva | 🔧 implementado |
 | **Engajamento**  | `(likes + comentários) ÷ views`                                        | 🔧     |
 | **Share do dominante** | maior soma de views por canal ÷ views totais da amostra          | 🔧     |
 

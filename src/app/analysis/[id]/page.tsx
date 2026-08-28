@@ -15,6 +15,7 @@ import {
   LANGUAGE_LABELS,
 } from "@/lib/constants";
 import { formatDateTime } from "@/lib/format";
+import { usesRealVideoData } from "@/lib/metrics";
 import { getAnalysis } from "@/lib/repository";
 
 export async function generateMetadata(
@@ -56,7 +57,7 @@ export default async function AnalysisPage(props: PageProps<"/analysis/[id]">) {
       <div className="space-y-6">
         <VerdictCard verdict={result.verdict} scores={result.scores} />
 
-        <MetricsGrid scores={result.scores} />
+        <MetricsGrid scores={result.scores} sources={result.metricSources} />
 
         <div className="grid grid-cols-1 gap-6 lg:grid-cols-2">
           <WhyCard points={result.whyPoints} />
@@ -72,7 +73,10 @@ export default async function AnalysisPage(props: PageProps<"/analysis/[id]">) {
       </div>
 
       <footer className="mt-10 border-t border-zinc-900 pt-6 text-center text-xs text-zinc-600">
-        {APP_DISCLAIMER} · Fase 1 com dados demonstrativos (mock).
+        {APP_DISCLAIMER} ·{" "}
+        {usesRealVideoData(result.metricSources)
+          ? "Métricas com dados públicos do YouTube; itens marcados “estimado” usam dados demonstrativos."
+          : "Fase 1 com dados demonstrativos (mock)."}
       </footer>
     </main>
   );

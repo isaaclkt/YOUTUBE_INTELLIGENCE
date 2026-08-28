@@ -48,6 +48,33 @@ export async function getAnalysis(id: string): Promise<Analysis | null> {
   };
 }
 
+/**
+ * Cache de respostas de APIs externas (TTL controlado pelo chamador).
+ * Devolve null quando não há entrada ou quando ela expirou.
+ */
+export async function getApiCache(key: string): Promise<string | null> {
+  const row = await prisma.apiCache.findUnique({ where: { key } });
+  if (!row) return null;
+  if (row.expiresAt.getTime() < Date.now()) {
+    await prisma.apiCache.delete({ where: { key } }).catch(() => undefined);
+    return null;
+  }
+  return row.payload;
+}
+
+export async function putApiCache(
+  key: string,
+  payload: string,
+  ttlMs: number
+): Promise<void> {
+  const expiresAt = new Date(Date.now() + ttlMs);
+  await prisma.apiCache.upsert({
+    where: { key },
+    update: { payload, expiresAt },
+    create: { key, payload, expiresAt },
+  });
+}
+
 export async function listRecentAnalyses(
   limit: number
 ): Promise<AnalysisSummary[]> {

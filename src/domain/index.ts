@@ -1,4 +1,10 @@
-export type { Analysis, AnalysisResult, AnalysisSummary } from "./analysis";
+export type {
+  Analysis,
+  AnalysisResult,
+  AnalysisSummary,
+  MetricSource,
+  MetricSourceMap,
+} from "./analysis";
 export type { Market } from "./market";
 export type { Opportunity, OpportunityPotential } from "./opportunity";
 export type { Recommendation } from "./recommendation";

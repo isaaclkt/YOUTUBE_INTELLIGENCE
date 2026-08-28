@@ -1,4 +1,4 @@
-import type { AnalysisResult, Topic } from "@/domain";
+import type { AnalysisResult, MetricSource, Topic } from "@/domain";
 import { getServices } from "./index";
 
 /**
@@ -48,9 +48,22 @@ export async function runAnalysisPipeline(topic: Topic): Promise<AnalysisResult>
     interpretation,
   });
 
+  // Origem das métricas → selos "estimado" na UI. Demanda, concorrência
+  // e saturação derivam das estatísticas de vídeo; tendência, da série.
+  const videoSource: MetricSource =
+    normalized.sources.videoStats === "real" ? "real" : "estimated";
+  const trendSource: MetricSource =
+    normalized.sources.trends === "real" ? "real" : "estimated";
+
   return {
     scores,
     verdict,
+    metricSources: {
+      demand: videoSource,
+      competition: videoSource,
+      saturation: videoSource,
+      trend: trendSource,
+    },
     whyPoints: interpretation.whyPoints,
     markets,
     opportunities: interpretation.angles,
