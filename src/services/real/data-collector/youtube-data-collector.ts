@@ -1,12 +1,8 @@
 import "server-only";
 
 import type { LanguageCode, Topic } from "@/domain";
-import type {
-  DataCollector,
-  RawTopicData,
-  RawVideoStats,
-} from "../../contracts";
-import { deriveVideoStats } from "./derive-video-stats";
+import type { DataCollector, RawTopicData } from "../../contracts";
+import { deriveVideoStats, type DerivedSample } from "./derive-video-stats";
 import {
   createQuotaLedger,
   fetchChannels,
@@ -59,11 +55,15 @@ export class YouTubeDataCollector implements DataCollector {
     const fallbackPromise = this.fallback.collect(topic);
 
     try {
-      const video = await this.collectVideoStats(topic, apiKey);
+      const { stats, sampleVideos } = await this.collectVideoStats(
+        topic,
+        apiKey
+      );
       const estimated = await fallbackPromise;
       return {
         topic,
-        video,
+        video: stats,
+        sampleVideos,
         trendSeries: estimated.trendSeries,
         countrySignals: estimated.countrySignals,
         sources: { videoStats: "real", trends: "mock" },
@@ -81,7 +81,7 @@ export class YouTubeDataCollector implements DataCollector {
   private async collectVideoStats(
     topic: Topic,
     apiKey: string
-  ): Promise<RawVideoStats> {
+  ): Promise<DerivedSample> {
     const ledger = createQuotaLedger();
     const searchOptions = {
       query: topic.query,
@@ -126,7 +126,7 @@ export class YouTubeDataCollector implements DataCollector {
       .map((iso) => new Date(iso))
       .filter((date) => !Number.isNaN(date.getTime()));
 
-    const stats = deriveVideoStats({
+    const derived = deriveVideoStats({
       videos,
       channels,
       newestPublishDates,
@@ -134,9 +134,9 @@ export class YouTubeDataCollector implements DataCollector {
       now,
     });
 
-    if (stats.sampleSize < MIN_SAMPLE_SIZE) {
+    if (derived.stats.sampleSize < MIN_SAMPLE_SIZE) {
       throw new Error(
-        `Amostra insuficiente após limpeza para "${topic.query}" (${stats.sampleSize} vídeos).`
+        `Amostra insuficiente após limpeza para "${topic.query}" (${derived.stats.sampleSize} vídeos).`
       );
     }
 
@@ -146,6 +146,6 @@ export class YouTubeDataCollector implements DataCollector {
         `Chamadas: ${ledger.calls.join(", ") || "nenhuma (tudo em cache)"}.`
     );
 
-    return stats;
+    return derived;
   }
 }

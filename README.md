@@ -123,6 +123,9 @@ muda.
 | Coleta de dados (YouTube Data API v3: views, VPH, outliers, canais/inscritos; cache 24h; fallback p/ mock) | **IMPLEMENTADO** |
 | Demand/Competition/Saturation com dados reais            | **IMPLEMENTADO** |
 | Selo "estimado" nas métricas sem fonte real              | **IMPLEMENTADO** |
+| Card "Ver dados brutos" (amostra com VPH, outliers, canais fortes) | **IMPLEMENTADO** |
+| Card "Títulos que estão performando agora" (outliers reais por VPH) | **IMPLEMENTADO** |
+| IA guiada pelos padrões de título dos outliers reais     | **IMPLEMENTADO** (aviso de placeholder quando em fallback) |
 | Fonte de tendências (série de 12 semanas, sinais/país)   | **MOCK** (selo "estimado") |
 | Pesos da normalização (a recalibrar com histórico real)  | **MOCK**         |
 | Fórmulas de score (`src/services/mock/formulas.ts`)      | **MOCK**         |

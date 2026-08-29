@@ -1,4 +1,4 @@
-import type { CountryCode, Topic } from "@/domain";
+import type { CountryCode, SampleVideo, Topic } from "@/domain";
 
 /**
  * Tipos intermediários do pipeline:
@@ -73,6 +73,8 @@ export interface RawCountrySignal {
 export interface RawTopicData {
   topic: Topic;
   video: RawVideoStats;
+  /** Amostra por vídeo (vazia no mock — não há vídeos reais para listar). */
+  sampleVideos: SampleVideo[];
   /** Série das últimas 12 semanas, da mais antiga para a mais recente. */
   trendSeries: RawTrendPoint[];
   countrySignals: RawCountrySignal[];

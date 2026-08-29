@@ -75,8 +75,11 @@ export class MockAIInterpreter implements AIInterpreter {
         trendPoint(metrics),
       ],
       angles: buildAngles(topic, metrics, scores),
+      // Templates ignoram os outlierTitles de propósito: extrair padrões
+      // estruturais é trabalho da IA real. A UI marca como placeholder.
       titles: buildTitles(topic),
       recommendationSummary: buildRecommendationSummary(topic, scores, verdict),
+      generatedBy: "template",
     };
   }
 }

@@ -31,6 +31,14 @@ export async function runAnalysisPipeline(topic: Topic): Promise<AnalysisResult>
   // 5. Oportunidades numéricas (ranking de mercados)
   const markets = await services.opportunityEngine.rankMarkets(topic, normalized);
 
+  // Títulos reais dos outliers (ordenados por VPH) — a IA extrai os
+  // padrões estruturais do nicho a partir deles. Cap de 15 no prompt.
+  const outlierTitles = raw.sampleVideos
+    .filter((video) => video.isOutlier)
+    .sort((a, b) => b.vph - a.vph)
+    .map((video) => video.title)
+    .slice(0, 15);
+
   // 6. Interpretação IA: todo o conteúdo em linguagem natural
   //    (por quê, ângulos, títulos, texto da recomendação)
   const interpretation = await services.aiInterpreter.interpret({
@@ -38,6 +46,7 @@ export async function runAnalysisPipeline(topic: Topic): Promise<AnalysisResult>
     metrics,
     scores,
     verdict,
+    outlierTitles,
   });
 
   // 7. Recomendação final (montagem: números + texto da IA)
@@ -64,6 +73,8 @@ export async function runAnalysisPipeline(topic: Topic): Promise<AnalysisResult>
       saturation: videoSource,
       trend: trendSource,
     },
+    sampleVideos: raw.sampleVideos,
+    interpretationSource: interpretation.generatedBy,
     whyPoints: interpretation.whyPoints,
     markets,
     opportunities: interpretation.angles,

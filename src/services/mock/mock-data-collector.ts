@@ -109,6 +109,9 @@ export class MockDataCollector implements DataCollector {
         medianSubscribers,
         recentUploadsPerWeek,
       },
+      // Sem vídeos reais para listar — os cards de dados brutos e de
+      // títulos outliers só aparecem com o coletor real.
+      sampleVideos: [],
       trendSeries,
       countrySignals,
       sources: { videoStats: "mock", trends: "mock" },

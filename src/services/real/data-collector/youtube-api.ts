@@ -46,7 +46,12 @@ export interface YouTubeSearchResponse {
 
 export interface YouTubeVideo {
   id?: string;
-  snippet?: { publishedAt?: string; channelId?: string };
+  snippet?: {
+    publishedAt?: string;
+    channelId?: string;
+    title?: string;
+    channelTitle?: string;
+  };
   statistics?: { viewCount?: string; likeCount?: string; commentCount?: string };
 }
 

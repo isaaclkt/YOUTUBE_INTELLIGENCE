@@ -70,6 +70,7 @@ O QUE PRODUZIR:
 - whyPoints: exatamente 3 pontos explicando o score — (1) demanda, (2) concorrência + saturação, (3) tendência — cada um citando os valores da entrada. Em português do Brasil.
 - angles: exatamente 3 ângulos pouco explorados ESPECÍFICOS deste tema (proibido genérico aplicável a qualquer tema, como "X para iniciantes" sem um recorte concreto do assunto). O campo "angle" no idioma do conteúdo; "reason" em português do Brasil, citando pelo menos um número da entrada; "potential" coerente com os scores.
 - titles: exatamente 3 títulos de vídeo prontos para uso, específicos do tema, no idioma do conteúdo. "whyItWorks" em português do Brasil, sem prometer viral.
+  REGRA DOS TÍTULOS: se "titulosDeOutliersReais" vier preenchido, esses são títulos de vídeos que estão performando muito acima da média nos canais deste nicho AGORA. Analise a ESTRUTURA deles (formato, comprimento, uso de números, perguntas, colchetes, maiúsculas, gatilhos e vocabulário próprios do nicho) e gere as 3 sugestões seguindo esses padrões comprovados, adaptados ao tema analisado. NUNCA use fórmulas genéricas de outro nicho (ex.: "eu testei X por 30 dias") se elas não aparecem nos padrões reais. Em "whyItWorks", diga qual padrão real o título segue. Se a lista vier vazia, crie títulos plausíveis para o nicho — ainda assim específicos do tema, nunca fórmula genérica.
 - recommendationSummary: 2–3 frases em português do Brasil com a recomendação prática, citando 1–2 números da entrada e terminando com um próximo passo concreto.`;
 
 export class RealAIInterpreter implements AIInterpreter {
@@ -95,9 +96,15 @@ export class RealAIInterpreter implements AIInterpreter {
   private getClient(): Anthropic {
     if (this.client === null) {
       // Lê ANTHROPIC_API_KEY do ambiente do servidor automaticamente.
+      // Chaves "identity-linked" exigem também o id do workspace
+      // (ANTHROPIC_WORKSPACE_ID) enviado como header.
+      const workspaceId = process.env.ANTHROPIC_WORKSPACE_ID;
       this.client = new Anthropic({
         timeout: REQUEST_TIMEOUT_MS,
         maxRetries: MAX_RETRIES,
+        ...(workspaceId
+          ? { defaultHeaders: { "anthropic-workspace-id": workspaceId } }
+          : {}),
       });
     }
     return this.client;
@@ -106,13 +113,14 @@ export class RealAIInterpreter implements AIInterpreter {
   private async callAnthropic(
     input: AIInterpretationInput
   ): Promise<AIInterpretation> {
-    const { topic, metrics, scores, verdict } = input;
+    const { topic, metrics, scores, verdict, outlierTitles } = input;
 
     const payload = {
       tema: topic.query,
       idiomaDoConteudo: LANGUAGE_LABELS[topic.language],
       paisAlvo: topic.country,
       veredito: verdict,
+      titulosDeOutliersReais: outlierTitles,
       scores: {
         oportunidade: scores.opportunity,
         demanda: scores.demand,
@@ -138,6 +146,6 @@ export class RealAIInterpreter implements AIInterpreter {
     if (!parsed) {
       throw new Error("Resposta do modelo não validou contra o schema.");
     }
-    return parsed;
+    return { ...parsed, generatedBy: "ai" };
   }
 }

@@ -1,3 +1,4 @@
+import type { SampleVideo } from "@/domain";
 import type { RawVideoStats } from "../../contracts";
 import type { YouTubeChannel, YouTubeVideo } from "./youtube-api";
 
@@ -34,24 +35,41 @@ function mean(values: readonly number[]): number {
   return values.reduce((sum, v) => sum + v, 0) / values.length;
 }
 
-interface VideoSample {
-  views: number;
-  vph: number;
-  engagement: number;
-  publishedAt: Date;
-  channelId: string;
-}
-
 interface ChannelSample {
   subscribers: number | null;
   avgViewsPerVideo: number;
 }
 
-function toVideoSample(video: YouTubeVideo, now: Date): VideoSample | null {
+/** Vídeo da amostra + dados internos que não vão para a UI. */
+interface EnrichedVideo extends SampleVideo {
+  engagement: number;
+  publishedAtMs: number;
+  channelId: string;
+}
+
+function toChannelSample(channel: YouTubeChannel): ChannelSample {
+  const stats = channel.statistics;
+  const hidden = stats?.hiddenSubscriberCount === true;
+  const subscribers = hidden ? null : Number(stats?.subscriberCount ?? NaN);
+  const totalViews = Number(stats?.viewCount ?? 0);
+  const videoCount = Math.max(1, Number(stats?.videoCount ?? 1));
+  return {
+    subscribers: Number.isFinite(subscribers as number) ? subscribers : null,
+    avgViewsPerVideo: totalViews / videoCount,
+  };
+}
+
+function toEnrichedVideo(
+  video: YouTubeVideo,
+  channelById: ReadonlyMap<string, ChannelSample>,
+  now: Date
+): EnrichedVideo | null {
   const publishedAtIso = video.snippet?.publishedAt;
   const channelId = video.snippet?.channelId;
   const viewsRaw = video.statistics?.viewCount;
-  if (!publishedAtIso || !channelId || viewsRaw === undefined) return null;
+  if (!video.id || !publishedAtIso || !channelId || viewsRaw === undefined) {
+    return null;
+  }
 
   const publishedAt = new Date(publishedAtIso);
   if (Number.isNaN(publishedAt.getTime())) return null;
@@ -66,25 +84,31 @@ function toVideoSample(video: YouTubeVideo, now: Date): VideoSample | null {
     (now.getTime() - publishedAt.getTime()) / 3_600_000
   );
 
-  return {
-    views,
-    vph: views / hoursSincePublish,
-    // Cap em 0.5: engajamento acima disso é quase sempre anomalia.
-    engagement: Math.min(0.5, (likes + comments) / Math.max(views, 1)),
-    publishedAt,
-    channelId,
-  };
-}
+  const channel = channelById.get(channelId);
+  const isStrongChannel =
+    channel !== undefined &&
+    channel.subscribers !== null &&
+    channel.subscribers >= STRONG_CHANNEL_SUBSCRIBERS;
+  const isOutlier =
+    channel !== undefined &&
+    channel.avgViewsPerVideo > 0 &&
+    views >= OUTLIER_MIN_VIEWS &&
+    views >= OUTLIER_MULTIPLIER * channel.avgViewsPerVideo;
 
-function toChannelSample(channel: YouTubeChannel): ChannelSample {
-  const stats = channel.statistics;
-  const hidden = stats?.hiddenSubscriberCount === true;
-  const subscribers = hidden ? null : Number(stats?.subscriberCount ?? NaN);
-  const totalViews = Number(stats?.viewCount ?? 0);
-  const videoCount = Math.max(1, Number(stats?.videoCount ?? 1));
   return {
-    subscribers: Number.isFinite(subscribers as number) ? subscribers : null,
-    avgViewsPerVideo: totalViews / videoCount,
+    videoId: video.id,
+    title: video.snippet?.title ?? "(sem título)",
+    channelTitle: video.snippet?.channelTitle ?? "(canal desconhecido)",
+    subscribers: channel?.subscribers ?? null,
+    views,
+    publishedAt: publishedAt.toISOString(),
+    vph: Math.round((views / hoursSincePublish) * 10) / 10,
+    isOutlier,
+    isStrongChannel,
+    // internos:
+    engagement: Math.min(0.5, (likes + comments) / Math.max(views, 1)),
+    publishedAtMs: publishedAt.getTime(),
+    channelId,
   };
 }
 
@@ -103,6 +127,12 @@ export function deriveUploadsPerWeek(
   return Math.round((newestPublishDates.length / spanWeeks) * 10) / 10;
 }
 
+export interface DerivedSample {
+  stats: RawVideoStats;
+  /** Amostra por vídeo (sem os campos internos), para UI e persistência. */
+  sampleVideos: SampleVideo[];
+}
+
 export function deriveVideoStats(input: {
   videos: readonly YouTubeVideo[];
   channels: readonly YouTubeChannel[];
@@ -110,63 +140,48 @@ export function deriveVideoStats(input: {
   newestPublishDates: readonly Date[];
   searchTotalResults: number | undefined;
   now: Date;
-}): RawVideoStats {
+}): DerivedSample {
   const { videos, channels, newestPublishDates, searchTotalResults, now } =
     input;
-
-  const sample = videos
-    .map((v) => toVideoSample(v, now))
-    .filter((v): v is VideoSample => v !== null);
 
   const channelById = new Map<string, ChannelSample>();
   for (const channel of channels) {
     if (channel.id) channelById.set(channel.id, toChannelSample(channel));
   }
 
+  const sample = videos
+    .map((v) => toEnrichedVideo(v, channelById, now))
+    .filter((v): v is EnrichedVideo => v !== null);
+
   const views = sample.map((v) => v.views);
   const vphs = sample.map((v) => v.vph);
 
   const recentCutoff = now.getTime() - RECENT_WINDOW_DAYS * 24 * 3_600_000;
   const recentVphs = sample
-    .filter((v) => v.publishedAt.getTime() >= recentCutoff)
+    .filter((v) => v.publishedAtMs >= recentCutoff)
     .map((v) => v.vph);
 
   // Concentração: fatia de views do canal com mais views na amostra.
   const viewsByChannel = new Map<string, number>();
   for (const v of sample) {
-    viewsByChannel.set(v.channelId, (viewsByChannel.get(v.channelId) ?? 0) + v.views);
+    viewsByChannel.set(
+      v.channelId,
+      (viewsByChannel.get(v.channelId) ?? 0) + v.views
+    );
   }
   const totalViews = views.reduce((sum, v) => sum + v, 0);
   const dominantChannelShare =
     totalViews > 0 ? Math.max(...viewsByChannel.values()) / totalViews : 0;
-
-  // Canais fortes: fração da amostra publicada por canais grandes.
-  const strongVideos = sample.filter((v) => {
-    const channel = channelById.get(v.channelId);
-    return (
-      channel !== undefined &&
-      channel.subscribers !== null &&
-      channel.subscribers >= STRONG_CHANNEL_SUBSCRIBERS
-    );
-  });
-
-  // Outliers: vídeos performando muito acima da média do próprio canal.
-  const outliers = sample.filter((v) => {
-    const channel = channelById.get(v.channelId);
-    if (!channel || channel.avgViewsPerVideo <= 0) return false;
-    return (
-      v.views >= OUTLIER_MIN_VIEWS &&
-      v.views >= OUTLIER_MULTIPLIER * channel.avgViewsPerVideo
-    );
-  });
 
   const knownSubscribers = [...channelById.values()]
     .map((c) => c.subscribers)
     .filter((s): s is number => s !== null);
 
   const round1 = (n: number) => Math.round(n * 10) / 10;
+  const ratio = (count: number) =>
+    sample.length > 0 ? Math.round((count / sample.length) * 100) / 100 : 0;
 
-  return {
+  const stats: RawVideoStats = {
     videoCount: Math.min(
       Math.max(searchTotalResults ?? sample.length, sample.length),
       VIDEO_COUNT_CAP
@@ -174,22 +189,23 @@ export function deriveVideoStats(input: {
     sampleSize: sample.length,
     avgViews: Math.round(mean(views)),
     medianViews: Math.round(median(views)),
-    avgEngagementRate: Math.round(mean(sample.map((v) => v.engagement)) * 1000) / 1000,
+    avgEngagementRate:
+      Math.round(mean(sample.map((v) => v.engagement)) * 1000) / 1000,
     medianVph: round1(median(vphs)),
     recentMedianVph: round1(
       recentVphs.length >= 5 ? median(recentVphs) : median(vphs)
     ),
-    outlierRatio:
-      sample.length > 0
-        ? Math.round((outliers.length / sample.length) * 100) / 100
-        : 0,
+    outlierRatio: ratio(sample.filter((v) => v.isOutlier).length),
     channelCount: viewsByChannel.size,
     dominantChannelShare: Math.round(dominantChannelShare * 100) / 100,
-    strongChannelShare:
-      sample.length > 0
-        ? Math.round((strongVideos.length / sample.length) * 100) / 100
-        : 0,
+    strongChannelShare: ratio(sample.filter((v) => v.isStrongChannel).length),
     medianSubscribers: Math.round(median(knownSubscribers)),
     recentUploadsPerWeek: deriveUploadsPerWeek(newestPublishDates, now),
   };
+
+  const sampleVideos: SampleVideo[] = sample.map(
+    ({ engagement: _e, publishedAtMs: _p, channelId: _c, ...video }) => video
+  );
+
+  return { stats, sampleVideos };
 }

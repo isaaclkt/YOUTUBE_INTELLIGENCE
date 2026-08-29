@@ -4,6 +4,8 @@ import { notFound } from "next/navigation";
 import { AnglesCard } from "@/components/result/angles-card";
 import { MarketsCard } from "@/components/result/markets-card";
 import { MetricsGrid } from "@/components/result/metrics-grid";
+import { OutlierTitlesCard } from "@/components/result/outlier-titles-card";
+import { RawDataCard } from "@/components/result/raw-data-card";
 import { RecommendationCard } from "@/components/result/recommendation-card";
 import { TitlesCard } from "@/components/result/titles-card";
 import { VerdictCard } from "@/components/result/verdict-card";
@@ -66,10 +68,17 @@ export default async function AnalysisPage(props: PageProps<"/analysis/[id]">) {
 
         <div className="grid grid-cols-1 gap-6 lg:grid-cols-2">
           <AnglesCard opportunities={result.opportunities} />
-          <TitlesCard titles={result.titles} />
+          <TitlesCard
+            titles={result.titles}
+            placeholder={result.interpretationSource === "template"}
+          />
         </div>
 
+        <OutlierTitlesCard videos={result.sampleVideos ?? []} />
+
         <RecommendationCard recommendation={result.recommendation} />
+
+        <RawDataCard videos={result.sampleVideos ?? []} />
       </div>
 
       <footer className="mt-10 border-t border-zinc-900 pt-6 text-center text-xs text-zinc-600">

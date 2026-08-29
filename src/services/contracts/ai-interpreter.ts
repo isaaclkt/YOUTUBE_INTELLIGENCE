@@ -1,4 +1,5 @@
 import type {
+  InterpretationSource,
   Opportunity,
   Scores,
   SuggestedTitle,
@@ -7,12 +8,18 @@ import type {
 } from "@/domain";
 import type { ComputedMetrics } from "./types";
 
-/** Entrada da IA: SOMENTE dados já calculados pelas etapas anteriores. */
+/** Entrada da IA: SOMENTE dados já calculados/coletados pelas etapas anteriores. */
 export interface AIInterpretationInput {
   topic: Topic;
   metrics: ComputedMetrics;
   scores: Scores;
   verdict: Verdict;
+  /**
+   * Títulos REAIS dos vídeos outliers do nicho, ordenados por VPH
+   * (vazio sem dados reais). A IA extrai os padrões estruturais deles
+   * para gerar sugestões no padrão comprovado do nicho.
+   */
+  outlierTitles: string[];
 }
 
 /**
@@ -29,6 +36,8 @@ export interface AIInterpretation {
   titles: SuggestedTitle[];
   /** Texto da recomendação final (veredito e confiança vêm dos scores). */
   recommendationSummary: string;
+  /** "ai" = gerado pelo modelo; "template" = placeholders do mock/fallback. */
+  generatedBy: InterpretationSource;
 }
 
 /**

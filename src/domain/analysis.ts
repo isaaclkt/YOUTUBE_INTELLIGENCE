@@ -1,12 +1,16 @@
 import type { Market } from "./market";
 import type { Opportunity } from "./opportunity";
 import type { Recommendation } from "./recommendation";
+import type { SampleVideo } from "./sample-video";
 import type { Scores, Verdict } from "./scores";
 import type { SuggestedTitle } from "./title";
 import type { CountryCode, LanguageCode, Topic } from "./topic";
 
 /** Origem de um número exibido na UI: dado real ou estimativa (mock). */
 export type MetricSource = "real" | "estimated";
+
+/** Quem gerou os textos da análise: a IA real ou os templates (mock). */
+export type InterpretationSource = "ai" | "template";
 
 /** Origem de cada uma das 4 métricas da tela de resultado. */
 export interface MetricSourceMap {
@@ -25,6 +29,13 @@ export interface AnalysisResult {
    * compatibilidade com análises persistidas antes deste campo.
    */
   metricSources?: MetricSourceMap;
+  /**
+   * Amostra de vídeos coletada (vazia/ausente em análises mock ou
+   * antigas). Alimenta "Ver dados brutos" e os títulos de outliers.
+   */
+  sampleVideos?: SampleVideo[];
+  /** "template" liga o aviso de placeholder no card de títulos. */
+  interpretationSource?: InterpretationSource;
   /** 3 pontos que explicam o score ("Por que esse score?"). */
   whyPoints: string[];
   /** Ranking dos 3 melhores mercados para o tema. */

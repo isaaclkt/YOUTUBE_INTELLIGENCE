@@ -2,9 +2,11 @@ export type {
   Analysis,
   AnalysisResult,
   AnalysisSummary,
+  InterpretationSource,
   MetricSource,
   MetricSourceMap,
 } from "./analysis";
+export type { SampleVideo } from "./sample-video";
 export type { Market } from "./market";
 export type { Opportunity, OpportunityPotential } from "./opportunity";
 export type { Recommendation } from "./recommendation";
