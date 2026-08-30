@@ -22,9 +22,14 @@ import {
   searchVideos,
   type YouTubeChannel,
 } from "../data-collector/youtube-api";
+import { classifyReplicable } from "./format-classifier";
 import { matchesLanguage } from "./language-filter";
 import { RADAR_SEED_QUERIES } from "./seed-queries";
-import { matchesFormat, parseIsoDuration } from "./video-filters";
+import {
+  isKidsContent,
+  matchesFormat,
+  parseIsoDuration,
+} from "./video-filters";
 
 /**
  * Radar REAL, em dois formatos:
@@ -89,7 +94,8 @@ const RELEVANCE_LANGUAGE: Record<string, string> = {
 };
 
 function sweepCacheKey(input: RadarSweepInput): string {
-  return `radar:v2:${input.format}:${input.language}:${input.country}:${input.window}`;
+  // v3: + filtro kids e classificação "replicável" no payload.
+  return `radar:v3:${input.format}:${input.language}:${input.country}:${input.window}`;
 }
 
 function quotaDayKey(): string {
@@ -225,10 +231,16 @@ export class RadarYouTubeProvider implements RadarProvider {
 
     const videos = await fetchVideos(videoIds, apiKey, ledger);
 
-    // Pós-filtros: formato (duração real + #shorts) e idioma RÍGIDO.
+    // Pós-filtros: formato (duração real + #shorts), idioma RÍGIDO e
+    // conteúdo infantil (madeForKids + heurística de título, RPM baixo).
+    let kidsDiscarded = 0;
     const kept = videos.filter((video) => {
       const title = video.snippet?.title ?? "";
       const duration = parseIsoDuration(video.contentDetails?.duration);
+      if (isKidsContent(title, video.status?.madeForKids)) {
+        kidsDiscarded += 1;
+        return false;
+      }
       return (
         matchesFormat(input.format, duration, title) &&
         matchesLanguage(title, video.snippet?.description, input.language)
@@ -271,16 +283,20 @@ export class RadarYouTubeProvider implements RadarProvider {
         views >= OUTLIER_MIN_VIEWS &&
         views >= OUTLIER_MULTIPLIER * channel.avgViewsPerVideo;
 
+      const title = video.snippet?.title ?? "(sem título)";
+      const channelTitle =
+        video.snippet?.channelTitle ?? "(canal desconhecido)";
       radarVideos.push({
         videoId: id,
-        title: video.snippet?.title ?? "(sem título)",
+        title,
         channelId,
-        channelTitle: video.snippet?.channelTitle ?? "(canal desconhecido)",
+        channelTitle,
         subscribers: channel?.subscribers ?? null,
         views,
         publishedAt: new Date(publishedMs).toISOString(),
         vph: Math.round((views / hours) * 10) / 10,
         isOutlier,
+        isReplicable: classifyReplicable(title, channelTitle),
         category: categoryByVideoId.get(id) ?? "curiosidades",
       });
     }
@@ -299,8 +315,12 @@ export class RadarYouTubeProvider implements RadarProvider {
       sweptAt: new Date().toISOString(),
       source: "real",
       quotaUnits: ledger.units,
+      // Replicáveis primeiro (nossa operação), depois por VPH.
       trendingVideos: [...radarVideos]
-        .sort((a, b) => b.vph - a.vph)
+        .sort(
+          (a, b) =>
+            Number(b.isReplicable) - Number(a.isReplicable) || b.vph - a.vph
+        )
         .slice(0, TRENDING_LIMIT),
       // Canais em ascensão fazem sentido para a operação long-form;
       // a aba Shorts é radar de temas, não de canais.
@@ -314,7 +334,9 @@ export class RadarYouTubeProvider implements RadarProvider {
     console.info(
       `[RadarYouTubeProvider] Varredura ${input.format}/${input.language}/${input.country}/${input.window}: ` +
         `${ledger.units} unidades de quota, ${ledger.cacheHits} respostas do cache, ` +
-        `${radarVideos.length} vídeos mantidos (${discarded} descartados por formato/idioma). ` +
+        `${radarVideos.length} vídeos mantidos (${discarded} descartados: ${kidsDiscarded} infantis, ` +
+        `${discarded - kidsDiscarded} formato/idioma; ` +
+        `${radarVideos.filter((v) => v.isReplicable).length} replicáveis). ` +
         `Chamadas: ${ledger.calls.join(", ")}.`
     );
 
@@ -329,17 +351,24 @@ function buildRisingChannels(
 ): RadarChannel[] {
   const byChannel = new Map<
     string,
-    { recentViews: number; bestVph: number; videoCount: number }
+    {
+      recentViews: number;
+      bestVph: number;
+      videoCount: number;
+      replicableCount: number;
+    }
   >();
   for (const video of videos) {
     const entry = byChannel.get(video.channelId) ?? {
       recentViews: 0,
       bestVph: 0,
       videoCount: 0,
+      replicableCount: 0,
     };
     entry.recentViews += video.views;
     entry.bestVph = Math.max(entry.bestVph, video.vph);
     entry.videoCount += 1;
+    if (video.isReplicable) entry.replicableCount += 1;
     byChannel.set(video.channelId, entry);
   }
 
@@ -367,11 +396,18 @@ function buildRisingChannels(
       videoCount: agg.videoCount,
       viewsPerSubscriber:
         Math.round((agg.recentViews / info.subscribers) * 10) / 10,
+      // Canal replicável = maioria dos vídeos amostrados é dark-friendly.
+      isReplicable: agg.replicableCount * 2 >= agg.videoCount,
     });
   }
 
+  // Replicáveis primeiro (nossa operação), depois pela razão.
   return rising
-    .sort((a, b) => b.viewsPerSubscriber - a.viewsPerSubscriber)
+    .sort(
+      (a, b) =>
+        Number(b.isReplicable) - Number(a.isReplicable) ||
+        b.viewsPerSubscriber - a.viewsPerSubscriber
+    )
     .slice(0, RISING_LIMIT);
 }
 
@@ -390,11 +426,14 @@ function buildHeatingNiches(videos: readonly RadarVideo[]): RadarNiche[] {
     byCategory.set(video.category, niche);
   }
 
-  // Melhor outlier (maior VPH) por categoria, como exemplo concreto.
+  // Exemplo por categoria: o melhor outlier, preferindo replicáveis.
   for (const niche of byCategory.values()) {
     const top = videos
       .filter((v) => v.category === niche.category && v.isOutlier)
-      .sort((a, b) => b.vph - a.vph)[0];
+      .sort(
+        (a, b) =>
+          Number(b.isReplicable) - Number(a.isReplicable) || b.vph - a.vph
+      )[0];
     if (top) {
       niche.topOutlierTitle = top.title;
       niche.topOutlierVideoId = top.videoId;

@@ -54,6 +54,7 @@ export interface YouTubeVideo {
     description?: string;
   };
   contentDetails?: { duration?: string };
+  status?: { madeForKids?: boolean };
   statistics?: { viewCount?: string; likeCount?: string; commentCount?: string };
 }
 
@@ -175,7 +176,8 @@ export async function fetchVideos(
     const response = await cachedGet<YouTubeVideosResponse>(
       "videos",
       {
-        part: "statistics,snippet,contentDetails",
+        // `status` traz o madeForKids sem custo extra de quota.
+        part: "statistics,snippet,contentDetails,status",
         id: group.join(","),
         maxResults: "50",
       },

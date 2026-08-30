@@ -83,6 +83,7 @@ function mockVideo(
     publishedAt: new Date(Date.now() - ageHours * 3_600_000).toISOString(),
     vph: Math.round((views / ageHours) * 10) / 10,
     isOutlier: rng() < 0.3,
+    isReplicable: rng() < 0.5,
     category,
   };
 }
@@ -119,8 +120,13 @@ export class MockRadarProvider implements RadarProvider {
         videoCount: 1,
         viewsPerSubscriber:
           Math.round((v.views / Math.max(1, v.subscribers ?? 1)) * 10) / 10,
+        isReplicable: v.isReplicable,
       }))
-      .sort((a, b) => b.viewsPerSubscriber - a.viewsPerSubscriber)
+      .sort(
+        (a, b) =>
+          Number(b.isReplicable) - Number(a.isReplicable) ||
+          b.viewsPerSubscriber - a.viewsPerSubscriber
+      )
       .slice(0, 6);
 
     const heatingNiches: RadarNiche[] = categories
@@ -147,7 +153,12 @@ export class MockRadarProvider implements RadarProvider {
       sweptAt: new Date().toISOString(),
       source: "mock",
       quotaUnits: 0,
-      trendingVideos: [...videos].sort((a, b) => b.vph - a.vph).slice(0, 15),
+      trendingVideos: [...videos]
+        .sort(
+          (a, b) =>
+            Number(b.isReplicable) - Number(a.isReplicable) || b.vph - a.vph
+        )
+        .slice(0, 15),
       // Canais em ascensão só no Radar long-form (espelha o real).
       risingChannels: input.format === "longform" ? risingChannels : [],
       heatingNiches,

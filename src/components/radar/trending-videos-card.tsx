@@ -33,6 +33,11 @@ export function TrendingVideosCard({
               >
                 {video.title}
               </a>
+              {video.isReplicable ? (
+                <span className="ml-2 inline-flex rounded-full bg-violet-500/15 px-1.5 py-0.5 align-middle text-[10px] font-medium text-violet-300 ring-1 ring-violet-500/30">
+                  replicável
+                </span>
+              ) : null}
               <p className="mt-0.5 text-xs text-zinc-500">
                 {video.channelTitle}
                 {video.subscribers !== null

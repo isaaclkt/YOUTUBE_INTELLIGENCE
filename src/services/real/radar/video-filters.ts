@@ -21,6 +21,31 @@ export function parseIsoDuration(iso: string | undefined): number {
   return hours * 3600 + minutes * 60 + seconds;
 }
 
+/**
+ * Conteúdo infantil (RPM baixo): madeForKids da API OU heurística de
+ * título multi-idioma (nursery rhymes, desenhos, cocomelon-like).
+ * O Radar reflete o que ADULTOS assistem — nichos monetizáveis.
+ */
+const KIDS_PATTERNS: readonly RegExp[] = [
+  /nursery rhym|kids? songs?|kids? videos?|for kids|for children|for toddlers/i,
+  /cocomelon|baby ?shark|chu ?chu ?tv|little angel|peppa|paw patrol|blippi/i,
+  /desenho infantil|para crian[çc]as|m[úu]sica infantil|can[çc][ãa]o infantil/i,
+  /galinha pintadinha|mundo bita|bolofofos|patati patat[áa]/i,
+  /canciones infantiles|para ni[ñn]os|dibujos animados|videos? infantiles/i,
+  /per bambini|cartoni animati|canzoni per bambini/i,
+  /pour enfants|comptines?|dessins? anim[ée]s?/i,
+  /f[üu]r kinder|kinderlieder|zeichentrick|kinderfilm/i,
+  /learn colors|abc song|123 song|finger family/i,
+];
+
+export function isKidsContent(
+  title: string,
+  madeForKids: boolean | undefined
+): boolean {
+  if (madeForKids === true) return true;
+  return KIDS_PATTERNS.some((pattern) => pattern.test(title));
+}
+
 /** O vídeo pertence ao formato varrido? */
 export function matchesFormat(
   format: RadarFormat,

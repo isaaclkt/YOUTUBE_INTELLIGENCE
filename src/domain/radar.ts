@@ -35,6 +35,8 @@ export interface RadarVideo {
   vph: number;
   /** Performando muito acima da média do próprio canal. */
   isOutlier: boolean;
+  /** Formato replicável (dark/faceless) segundo a heurística textual. */
+  isReplicable: boolean;
   category: NicheCategory;
 }
 
@@ -53,6 +55,8 @@ export interface RadarChannel {
   videoCount: number;
   /** views recentes ÷ inscritos — o sinal de nicho aberto. */
   viewsPerSubscriber: number;
+  /** Maioria dos vídeos amostrados do canal é de formato replicável. */
+  isReplicable: boolean;
 }
 
 /** Uma categoria ranqueada por concentração de outliers. */

@@ -109,9 +109,12 @@ duração real + "#shorts" no título + **filtro rígido de idioma**
 formato+par+janela) e o **teto diário do Radar de 8.000 unidades**
 (`RADAR_DAILY_QUOTA_BUDGET`).
 
-Capacidade diária fresca dentro do teto: ~4 varreduras long-form + 1 de
-Shorts (≈ 7,3k) — os 7 pares long-form frescos custariam 11,4k e não
-cabem. O botão de troca é `FORMAT_DURATIONS` em
+O filtro de conteúdo infantil (`madeForKids` via `part=status` no
+`videos.list` já chamado) e a classificação "replicável" são
+pós-processamento: **custo extra zero** — os valores por varredura não
+mudam. Capacidade diária fresca dentro do teto: ~4 varreduras long-form
++ 1 de Shorts (≈ 7,3k) — os 7 pares long-form frescos custariam 11,4k e
+não cabem. O botão de troca é `FORMAT_DURATIONS` em
 `src/services/real/radar/radar-youtube-provider.ts`: remover `"long"`
 (>20min) devolve o long-form a ~815u/varredura (7 pares ≈ 5,7k/dia), ao
 custo de perder documentários longos da varredura.
@@ -145,6 +148,10 @@ muda.
 | Aba **Radar** (/radar, long-form 4min+): vídeos estourando, canais novos explodindo, nichos em aquecimento; filtros de par idioma+país e janela 24h/7d/30d | **IMPLEMENTADO** |
 | Aba **Shorts Radar** (/radar/shorts): fonte de ideias para adaptar em vídeos longos | **IMPLEMENTADO** |
 | Filtro rígido de idioma + descarte de Shorts no long-form | **IMPLEMENTADO** |
+| Exclusão de conteúdo infantil (madeForKids + heurística de título) | **IMPLEMENTADO** |
+| Classificação "replicável" (dark/faceless) com selo e priorização nos blocos | **IMPLEMENTADO** |
+| Sementes do Radar reformuladas para formatos dark por categoria | **IMPLEMENTADO** |
+| Home em painel (Radar em destaque, Analisar tema, Shorts Radar, Histórico) | **IMPLEMENTADO** |
 | Radar: cache de varredura 12h + teto diário de quota (8.000u) | **IMPLEMENTADO** |
 | IA guiada pelos padrões de título dos outliers reais     | **IMPLEMENTADO** (aviso de placeholder quando em fallback) |
 | Fonte de tendências (série de 12 semanas, sinais/país)   | **MOCK** (selo "estimado") |
