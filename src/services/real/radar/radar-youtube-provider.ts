@@ -3,6 +3,7 @@ import "server-only";
 import type {
   NicheCategory,
   RadarChannel,
+  RadarFormat,
   RadarNiche,
   RadarSweep,
   RadarVideo,
@@ -21,27 +22,47 @@ import {
   searchVideos,
   type YouTubeChannel,
 } from "../data-collector/youtube-api";
+import { matchesLanguage } from "./language-filter";
 import { RADAR_SEED_QUERIES } from "./seed-queries";
+import { matchesFormat, parseIsoDuration } from "./video-filters";
 
 /**
- * Radar REAL: varredura de 8 consultas-semente (1 por categoria) com
- * `order=viewCount` + `publishedAfter` — os vídeos mais vistos
- * publicados dentro da janela.
+ * Radar REAL, em dois formatos:
  *
- * QUOTA por varredura nova: ~816 unidades
- *   8 × search.list = 800 · videos.list ≈ 8 · channels.list ≈ 7–8
- * Proteções:
- *   - cache da varredura por 12h (SQLite) por idioma+país+janela;
- *   - teto diário de quota do Radar (RADAR_DAILY_QUOTA_BUDGET): ao
- *     atingir, novas varreduras lançam RadarBudgetExceededError em vez
- *     de estourar as 10.000 unidades/dia (as análises usam o restante).
+ * - "longform" (Radar principal — nossa operação é de vídeos longos):
+ *   por categoria, DUAS buscas (videoDuration=medium e long → 4min+).
+ *   8 categorias × 2 × 100 = 1.600u de busca (~1.620u no total).
+ * - "shorts" (aba de fonte de ideias): UMA busca por categoria
+ *   (videoDuration=short). 8 × 100 = 800u (~815u no total).
+ *
+ * Pós-filtros em ambos: duração real (contentDetails) + "#shorts" no
+ * título + FILTRO RÍGIDO DE IDIOMA (script + stopwords) — vídeo fora
+ * do idioma selecionado é descartado da amostra.
+ *
+ * Proteções de quota: cache de 12h por formato+idioma+país+janela e
+ * teto diário compartilhado do Radar (RADAR_DAILY_QUOTA_BUDGET).
  */
 
-/** CALIBRÁVEL: teto diário de unidades gastas pelo Radar. */
+/** CALIBRÁVEL: teto diário de unidades gastas pelo Radar (as 2 abas). */
 export const RADAR_DAILY_QUOTA_BUDGET = 8_000;
-/** Estimativa conservadora do custo de uma varredura nova. */
-export const RADAR_SWEEP_ESTIMATED_UNITS = 850;
-/** Cache da varredura: 12h por idioma+país+janela. */
+
+/** Estimativas conservadoras por formato (pré-checagem do teto). */
+const ESTIMATED_UNITS: Record<RadarFormat, number> = {
+  longform: 1_650,
+  shorts: 850,
+};
+
+/** Buscas por categoria, por formato (videoDuration da API). */
+const FORMAT_DURATIONS: Record<
+  RadarFormat,
+  ReadonlyArray<"short" | "medium" | "long">
+> = {
+  // medium (4–20min) + long (>20min) = long-form 4min+
+  longform: ["medium", "long"],
+  shorts: ["short"],
+};
+
+/** Cache da varredura: 12h por formato+idioma+país+janela. */
 const SWEEP_CACHE_TTL_MS = 12 * 60 * 60 * 1000;
 
 /** CALIBRÁVEL: "canal em ascensão" = pequeno OU novo, com VPH alto. */
@@ -55,6 +76,7 @@ const OUTLIER_MIN_VIEWS = 1_000;
 
 const TRENDING_LIMIT = 15;
 const RISING_LIMIT = 10;
+const MIN_SWEEP_VIDEOS = 8;
 
 /** ISO 639-1 aceito pelo relevanceLanguage (espelha o coletor). */
 const RELEVANCE_LANGUAGE: Record<string, string> = {
@@ -67,7 +89,7 @@ const RELEVANCE_LANGUAGE: Record<string, string> = {
 };
 
 function sweepCacheKey(input: RadarSweepInput): string {
-  return `radar:v1:${input.language}:${input.country}:${input.window}`;
+  return `radar:v2:${input.format}:${input.language}:${input.country}:${input.window}`;
 }
 
 function quotaDayKey(): string {
@@ -132,7 +154,7 @@ export class RadarYouTubeProvider implements RadarProvider {
 
     // 2. Teto diário: nunca deixar o Radar consumir o dia inteiro.
     const spentToday = await getRadarQuotaSpentToday();
-    if (spentToday + RADAR_SWEEP_ESTIMATED_UNITS > RADAR_DAILY_QUOTA_BUDGET) {
+    if (spentToday + ESTIMATED_UNITS[input.format] > RADAR_DAILY_QUOTA_BUDGET) {
       throw new RadarBudgetExceededError(spentToday, RADAR_DAILY_QUOTA_BUDGET);
     }
 
@@ -161,22 +183,26 @@ export class RadarYouTubeProvider implements RadarProvider {
       RADAR_WINDOWS.find((w) => w.key === input.window)?.hours ?? 168;
     const publishedAfter = windowStartIso(windowHours);
     const relevanceLanguage = RELEVANCE_LANGUAGE[input.language] ?? "en";
+    const durations = FORMAT_DURATIONS[input.format];
 
-    // 1 busca por categoria, em paralelo (mais vistos dentro da janela).
+    // categorias × durações do formato, tudo em paralelo.
     const categories = Object.keys(seeds) as NicheCategory[];
     const searches = await Promise.all(
-      categories.map((category) =>
-        searchVideos(
-          {
-            query: seeds[category],
-            relevanceLanguage,
-            regionCode: input.country,
-            order: "viewCount",
-            publishedAfter,
-          },
-          apiKey,
-          ledger
-        ).then((response) => ({ category, response }))
+      categories.flatMap((category) =>
+        durations.map((videoDuration) =>
+          searchVideos(
+            {
+              query: seeds[category],
+              relevanceLanguage,
+              regionCode: input.country,
+              order: "viewCount",
+              publishedAfter,
+              videoDuration,
+            },
+            apiKey,
+            ledger
+          ).then((response) => ({ category, response }))
+        )
       )
     );
 
@@ -193,14 +219,26 @@ export class RadarYouTubeProvider implements RadarProvider {
     const videoIds = [...categoryByVideoId.keys()];
     if (videoIds.length === 0) {
       throw new Error(
-        `Varredura sem resultados (${input.language}/${input.country}/${input.window}).`
+        `Varredura sem resultados (${input.format}/${input.language}/${input.country}/${input.window}).`
       );
     }
 
     const videos = await fetchVideos(videoIds, apiKey, ledger);
+
+    // Pós-filtros: formato (duração real + #shorts) e idioma RÍGIDO.
+    const kept = videos.filter((video) => {
+      const title = video.snippet?.title ?? "";
+      const duration = parseIsoDuration(video.contentDetails?.duration);
+      return (
+        matchesFormat(input.format, duration, title) &&
+        matchesLanguage(title, video.snippet?.description, input.language)
+      );
+    });
+    const discarded = videos.length - kept.length;
+
     const channelIds = [
       ...new Set(
-        videos
+        kept
           .map((v) => v.snippet?.channelId)
           .filter((id): id is string => Boolean(id))
       ),
@@ -213,7 +251,7 @@ export class RadarYouTubeProvider implements RadarProvider {
 
     const now = Date.now();
     const radarVideos: RadarVideo[] = [];
-    for (const video of videos) {
+    for (const video of kept) {
       const id = video.id;
       const channelId = video.snippet?.channelId;
       const publishedAtIso = video.snippet?.publishedAt;
@@ -247,24 +285,37 @@ export class RadarYouTubeProvider implements RadarProvider {
       });
     }
 
+    if (radarVideos.length < MIN_SWEEP_VIDEOS) {
+      throw new Error(
+        `Varredura com amostra insuficiente após filtros (${radarVideos.length} vídeos).`
+      );
+    }
+
     const sweep: RadarSweep = {
       language: input.language,
       country: input.country,
       window: input.window,
+      format: input.format,
       sweptAt: new Date().toISOString(),
       source: "real",
       quotaUnits: ledger.units,
       trendingVideos: [...radarVideos]
         .sort((a, b) => b.vph - a.vph)
         .slice(0, TRENDING_LIMIT),
-      risingChannels: buildRisingChannels(radarVideos, channelById, now),
+      // Canais em ascensão fazem sentido para a operação long-form;
+      // a aba Shorts é radar de temas, não de canais.
+      risingChannels:
+        input.format === "longform"
+          ? buildRisingChannels(radarVideos, channelById, now)
+          : [],
       heatingNiches: buildHeatingNiches(radarVideos),
     };
 
     console.info(
-      `[RadarYouTubeProvider] Varredura ${input.language}/${input.country}/${input.window}: ` +
+      `[RadarYouTubeProvider] Varredura ${input.format}/${input.language}/${input.country}/${input.window}: ` +
         `${ledger.units} unidades de quota, ${ledger.cacheHits} respostas do cache, ` +
-        `${radarVideos.length} vídeos. Chamadas: ${ledger.calls.join(", ")}.`
+        `${radarVideos.length} vídeos mantidos (${discarded} descartados por formato/idioma). ` +
+        `Chamadas: ${ledger.calls.join(", ")}.`
     );
 
     return sweep;
@@ -335,12 +386,7 @@ function buildHeatingNiches(videos: readonly RadarVideo[]): RadarNiche[] {
       topOutlierVideoId: null,
     };
     niche.sampleCount += 1;
-    if (video.isOutlier) {
-      niche.outlierCount += 1;
-      if (niche.topOutlierTitle === null) {
-        // vídeos chegam sem ordem; guarda o de maior VPH ao final
-      }
-    }
+    if (video.isOutlier) niche.outlierCount += 1;
     byCategory.set(video.category, niche);
   }
 

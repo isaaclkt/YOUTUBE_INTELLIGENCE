@@ -51,7 +51,9 @@ export interface YouTubeVideo {
     channelId?: string;
     title?: string;
     channelTitle?: string;
+    description?: string;
   };
+  contentDetails?: { duration?: string };
   statistics?: { viewCount?: string; likeCount?: string; commentCount?: string };
 }
 
@@ -123,6 +125,8 @@ export async function searchVideos(
     order: "relevance" | "date" | "viewCount";
     /** RFC 3339 — só vídeos publicados depois deste instante. */
     publishedAfter?: string;
+    /** Filtro de duração da API: short <4min, medium 4–20min, long >20min. */
+    videoDuration?: "short" | "medium" | "long";
   },
   apiKey: string,
   ledger: QuotaLedger
@@ -138,6 +142,9 @@ export async function searchVideos(
   };
   if (options.publishedAfter) {
     params.publishedAfter = options.publishedAfter;
+  }
+  if (options.videoDuration) {
+    params.videoDuration = options.videoDuration;
   }
   return cachedGet<YouTubeSearchResponse>(
     "search",
@@ -167,7 +174,11 @@ export async function fetchVideos(
   for (const group of chunk(ids, 50)) {
     const response = await cachedGet<YouTubeVideosResponse>(
       "videos",
-      { part: "statistics,snippet", id: group.join(","), maxResults: "50" },
+      {
+        part: "statistics,snippet,contentDetails",
+        id: group.join(","),
+        maxResults: "50",
+      },
       QUOTA_COSTS.videos,
       "videos.list",
       apiKey,

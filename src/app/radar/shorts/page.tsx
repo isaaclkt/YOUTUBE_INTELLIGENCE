@@ -2,52 +2,53 @@ import type { Metadata } from "next";
 import Link from "next/link";
 import { HeatingNichesCard } from "@/components/radar/heating-niches-card";
 import { RadarFilters } from "@/components/radar/radar-filters";
-import { RisingChannelsCard } from "@/components/radar/rising-channels-card";
 import { TrendingVideosCard } from "@/components/radar/trending-videos-card";
 import { APP_DISCLAIMER } from "@/lib/constants";
 import { formatDateTime } from "@/lib/format";
 import { parseRadarParams } from "@/lib/radar-params";
 import { runRadarSweep } from "@/services/radar";
 
-export const metadata: Metadata = { title: "Radar" };
+export const metadata: Metadata = { title: "Shorts Radar" };
 
-// Varredura e cache mudam ao longo do dia — nunca servir de cache do Next.
 export const dynamic = "force-dynamic";
 
-export default async function RadarPage(props: PageProps<"/radar">) {
+export default async function ShortsRadarPage(
+  props: PageProps<"/radar/shorts">
+) {
   const searchParams = await props.searchParams;
   const params = parseRadarParams(searchParams);
-  const outcome = await runRadarSweep({ ...params, format: "longform" });
+  const outcome = await runRadarSweep({ ...params, format: "shorts" });
 
   return (
     <main className="mx-auto w-full max-w-4xl px-4 py-8 sm:py-12">
       <nav className="mb-6 flex items-center justify-between">
         <Link
+          href="/radar"
+          className="text-sm text-zinc-400 transition hover:text-zinc-200"
+        >
+          ← Radar (vídeos longos)
+        </Link>
+        <Link
           href="/"
           className="text-sm text-zinc-400 transition hover:text-zinc-200"
         >
-          ← Analisar um tema
-        </Link>
-        <Link
-          href="/radar/shorts"
-          className="rounded-full border border-zinc-800 bg-zinc-900/60 px-3 py-1.5 text-xs font-medium text-zinc-300 transition hover:border-zinc-600 hover:text-white"
-        >
-          🎬 Shorts Radar →
+          Analisar um tema
         </Link>
       </nav>
 
       <header className="mb-6">
         <h1 className="text-2xl font-bold tracking-tight text-zinc-50 sm:text-3xl">
-          Radar
+          Shorts Radar
         </h1>
         <p className="mt-1.5 text-sm text-zinc-400">
-          O que está bombando agora em vídeos longos (4min+), sem precisar
-          informar um tema.
+          Fonte de ideias para adaptar em vídeos longos — radar de{" "}
+          <span className="font-medium text-zinc-300">temas e ganchos</span>,
+          não de formato.
         </p>
       </header>
 
       <div className="mb-8">
-        <RadarFilters params={params} />
+        <RadarFilters params={params} basePath="/radar/shorts" />
       </div>
 
       {outcome.status === "budget_exceeded" ? (
@@ -59,7 +60,7 @@ export default async function RadarPage(props: PageProps<"/radar">) {
             Esta varredura ainda não está em cache e rodá-la agora passaria do
             teto diário ({outcome.spentToday}/{outcome.budget} unidades já
             usadas pelo Radar hoje). Volte a uma combinação já varrida ou tente
-            novamente amanhã — o teto protege a quota das análises de tema.
+            novamente amanhã.
           </p>
         </div>
       ) : (
@@ -71,12 +72,12 @@ export default async function RadarPage(props: PageProps<"/radar">) {
             </div>
           ) : null}
 
-          <TrendingVideosCard videos={outcome.sweep.trendingVideos} />
+          <TrendingVideosCard
+            videos={outcome.sweep.trendingVideos}
+            title="Shorts estourando"
+          />
 
-          <div className="grid grid-cols-1 gap-6 lg:grid-cols-2">
-            <RisingChannelsCard channels={outcome.sweep.risingChannels} />
-            <HeatingNichesCard niches={outcome.sweep.heatingNiches} />
-          </div>
+          <HeatingNichesCard niches={outcome.sweep.heatingNiches} />
 
           <p className="text-center text-xs text-zinc-600">
             Varredura de {formatDateTime(outcome.sweep.sweptAt)} ·{" "}

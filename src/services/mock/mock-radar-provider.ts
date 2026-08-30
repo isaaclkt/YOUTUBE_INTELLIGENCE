@@ -91,7 +91,7 @@ export class MockRadarProvider implements RadarProvider {
   async sweep(input: RadarSweepInput): Promise<RadarSweep> {
     await simulateLatency(500, 900);
     const rng = createRng(
-      `radar|${input.language}|${input.country}|${input.window}|v1`
+      `radar|${input.format}|${input.language}|${input.country}|${input.window}|v2`
     );
     const windowHours =
       RADAR_WINDOWS.find((w) => w.key === input.window)?.hours ?? 168;
@@ -143,11 +143,13 @@ export class MockRadarProvider implements RadarProvider {
       language: input.language,
       country: input.country,
       window: input.window,
+      format: input.format,
       sweptAt: new Date().toISOString(),
       source: "mock",
       quotaUnits: 0,
       trendingVideos: [...videos].sort((a, b) => b.vph - a.vph).slice(0, 15),
-      risingChannels,
+      // Canais em ascensão só no Radar long-form (espelha o real).
+      risingChannels: input.format === "longform" ? risingChannels : [],
       heatingNiches,
     };
   }

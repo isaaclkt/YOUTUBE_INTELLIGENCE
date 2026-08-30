@@ -3,6 +3,12 @@ import type { CountryCode, LanguageCode } from "./topic";
 /** Janela de publicação da varredura do Radar. */
 export type RadarWindow = "24h" | "7d" | "30d";
 
+/**
+ * Formato varrido: "longform" (4min+, o Radar principal — nossa
+ * operação é de vídeos longos) ou "shorts" (aba de fonte de ideias).
+ */
+export type RadarFormat = "longform" | "shorts";
+
 /** Categorias de nicho varridas pelo Radar (uma consulta-semente cada). */
 export type NicheCategory =
   | "historia"
@@ -64,6 +70,7 @@ export interface RadarSweep {
   language: LanguageCode;
   country: CountryCode;
   window: RadarWindow;
+  format: RadarFormat;
   /** ISO 8601. */
   sweptAt: string;
   source: "real" | "mock";

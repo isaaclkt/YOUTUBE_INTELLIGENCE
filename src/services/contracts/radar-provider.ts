@@ -1,6 +1,7 @@
 import type {
   CountryCode,
   LanguageCode,
+  RadarFormat,
   RadarSweep,
   RadarWindow,
 } from "@/domain";
@@ -9,6 +10,7 @@ export interface RadarSweepInput {
   language: LanguageCode;
   country: CountryCode;
   window: RadarWindow;
+  format: RadarFormat;
 }
 
 /**

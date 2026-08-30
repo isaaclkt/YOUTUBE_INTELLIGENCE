@@ -99,15 +99,22 @@ e reinicie. Uma análise nova custa **~204 unidades de quota** (2×
 tier gratuito de 10.000 unidades. Tendência continua estimada (selo
 "estimado" na UI) até a fonte de tendências ser conectada.
 
-**Quota do Radar** (medido): uma varredura nova custa **~814 unidades**
-(8 consultas-semente × 100 + `videos.list`/`channels.list` ≈ 14). Os 7
-pares na janela padrão ≈ 5,7k/dia; todos os 7 pares × 3 janelas frescas
-≈ 17k — **não cabe** nos 10k/dia. Proteções: cache de 12h por
-par+janela e um **teto diário do Radar de 8.000 unidades**
-(`RADAR_DAILY_QUOTA_BUDGET`) — atingido o teto, o Radar avisa em vez de
-consumir a quota das análises. Alternativa: reduzir as
-consultas-semente em `src/services/real/radar/seed-queries.ts` (cada
-categoria removida economiza 100u/varredura, ao custo de cobertura).
+**Quota do Radar** (medido): o Radar principal é **long-form (4min+)**
+— por categoria são 2 buscas (`videoDuration=medium` e `long`), custo
+de **~1.622 unidades** por varredura nova. O **Shorts Radar**
+(`/radar/shorts`, fonte de ideias) usa 1 busca por categoria
+(`videoDuration=short`): **~813 unidades**. Ambos aplicam pós-filtro de
+duração real + "#shorts" no título + **filtro rígido de idioma**
+(script Unicode + stopwords) e compartilham motor, cache (12h por
+formato+par+janela) e o **teto diário do Radar de 8.000 unidades**
+(`RADAR_DAILY_QUOTA_BUDGET`).
+
+Capacidade diária fresca dentro do teto: ~4 varreduras long-form + 1 de
+Shorts (≈ 7,3k) — os 7 pares long-form frescos custariam 11,4k e não
+cabem. O botão de troca é `FORMAT_DURATIONS` em
+`src/services/real/radar/radar-youtube-provider.ts`: remover `"long"`
+(>20min) devolve o long-form a ~815u/varredura (7 pares ≈ 5,7k/dia), ao
+custo de perder documentários longos da varredura.
 
 ### Migrar SQLite → Postgres
 
@@ -135,7 +142,9 @@ muda.
 | Selo "estimado" nas métricas sem fonte real              | **IMPLEMENTADO** |
 | Card "Ver dados brutos" (amostra com VPH, outliers, canais fortes) | **IMPLEMENTADO** |
 | Card "Títulos que estão performando agora" (outliers reais por VPH) | **IMPLEMENTADO** |
-| Aba **Radar** (/radar): vídeos estourando, canais novos explodindo, nichos em aquecimento; filtros de par idioma+país e janela 24h/7d/30d | **IMPLEMENTADO** |
+| Aba **Radar** (/radar, long-form 4min+): vídeos estourando, canais novos explodindo, nichos em aquecimento; filtros de par idioma+país e janela 24h/7d/30d | **IMPLEMENTADO** |
+| Aba **Shorts Radar** (/radar/shorts): fonte de ideias para adaptar em vídeos longos | **IMPLEMENTADO** |
+| Filtro rígido de idioma + descarte de Shorts no long-form | **IMPLEMENTADO** |
 | Radar: cache de varredura 12h + teto diário de quota (8.000u) | **IMPLEMENTADO** |
 | IA guiada pelos padrões de título dos outliers reais     | **IMPLEMENTADO** (aviso de placeholder quando em fallback) |
 | Fonte de tendências (série de 12 semanas, sinais/país)   | **MOCK** (selo "estimado") |

@@ -26,7 +26,13 @@ function Pill({
 }
 
 /** Filtros do Radar como links — estado vive na URL, sem JS de cliente. */
-export function RadarFilters({ params }: { params: RadarParams }) {
+export function RadarFilters({
+  params,
+  basePath = "/radar",
+}: {
+  params: RadarParams;
+  basePath?: string;
+}) {
   const currentPair = pairKey(params.language, params.country);
   return (
     <div className="space-y-3">
@@ -36,7 +42,7 @@ export function RadarFilters({ params }: { params: RadarParams }) {
           return (
             <Pill
               key={key}
-              href={`/radar?pair=${encodeURIComponent(key)}&window=${params.window}`}
+              href={`${basePath}?pair=${encodeURIComponent(key)}&window=${params.window}`}
               active={key === currentPair}
             >
               {pair.flag} {pair.label}
@@ -48,7 +54,7 @@ export function RadarFilters({ params }: { params: RadarParams }) {
         {RADAR_WINDOWS.map((window) => (
           <Pill
             key={window.key}
-            href={`/radar?pair=${encodeURIComponent(currentPair)}&window=${window.key}`}
+            href={`${basePath}?pair=${encodeURIComponent(currentPair)}&window=${window.key}`}
             active={window.key === params.window}
           >
             {window.label}

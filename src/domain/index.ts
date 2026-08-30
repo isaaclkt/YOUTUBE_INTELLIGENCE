@@ -9,6 +9,7 @@ export type {
 export type {
   NicheCategory,
   RadarChannel,
+  RadarFormat,
   RadarNiche,
   RadarSweep,
   RadarVideo,

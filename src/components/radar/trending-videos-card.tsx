@@ -4,10 +4,16 @@ import { formatCompact, formatVideoAge } from "@/lib/format";
 import { Card } from "../card";
 
 /** Bloco "Vídeos estourando": top vídeos por VPH na janela. */
-export function TrendingVideosCard({ videos }: { videos: RadarVideo[] }) {
+export function TrendingVideosCard({
+  videos,
+  title = "Vídeos estourando",
+}: {
+  videos: RadarVideo[];
+  title?: string;
+}) {
   if (videos.length === 0) return null;
   return (
-    <Card title="Vídeos estourando">
+    <Card title={title}>
       <p className="mb-4 text-xs text-zinc-500">
         Maior velocidade de views (VPH) entre os vídeos publicados na janela —
         o VPH já desconta a idade do vídeo.
