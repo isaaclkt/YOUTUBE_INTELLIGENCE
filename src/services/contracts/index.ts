@@ -7,6 +7,8 @@ export type { ServiceContainer } from "./container";
 export type { DataCollector } from "./data-collector";
 export type { MetricsEngine } from "./metrics-engine";
 export type { OpportunityEngine } from "./opportunity-engine";
+export type { RadarProvider, RadarSweepInput } from "./radar-provider";
+export { RadarBudgetExceededError } from "./radar-provider";
 export type {
   RecommendationEngine,
   RecommendationInput,

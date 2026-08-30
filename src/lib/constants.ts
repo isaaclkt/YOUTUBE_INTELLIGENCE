@@ -1,4 +1,9 @@
-import type { CountryCode, LanguageCode } from "@/domain";
+import type {
+  CountryCode,
+  LanguageCode,
+  NicheCategory,
+  RadarWindow,
+} from "@/domain";
 
 export const APP_NAME = "YouTube Intelligence AI";
 export const APP_TAGLINE = "Vale a pena criar conteúdo sobre esse tema?";
@@ -63,3 +68,46 @@ export const DEFAULT_COUNTRY: CountryCode = "BR";
 
 /** Quantas análises aparecem no histórico da Home. */
 export const HISTORY_LIMIT = 8;
+
+// ===================== Radar =====================
+
+/** Pares idioma+país varridos pelo Radar. */
+export const RADAR_PAIRS: ReadonlyArray<{
+  language: LanguageCode;
+  country: CountryCode;
+  label: string;
+  flag: string;
+}> = [
+  { language: "pt-BR", country: "BR", label: "PT · Brasil", flag: "🇧🇷" },
+  { language: "en", country: "US", label: "EN · EUA", flag: "🇺🇸" },
+  { language: "es", country: "MX", label: "ES · México", flag: "🇲🇽" },
+  { language: "es", country: "ES", label: "ES · Espanha", flag: "🇪🇸" },
+  { language: "it", country: "IT", label: "IT · Itália", flag: "🇮🇹" },
+  { language: "fr", country: "FR", label: "FR · França", flag: "🇫🇷" },
+  { language: "de", country: "DE", label: "DE · Alemanha", flag: "🇩🇪" },
+];
+
+/** Janelas de publicação do Radar. */
+export const RADAR_WINDOWS: ReadonlyArray<{
+  key: RadarWindow;
+  label: string;
+  hours: number;
+}> = [
+  { key: "24h", label: "Últimas 24h", hours: 24 },
+  { key: "7d", label: "7 dias", hours: 168 },
+  { key: "30d", label: "30 dias", hours: 720 },
+];
+
+export const RADAR_DEFAULT_WINDOW: RadarWindow = "7d";
+
+/** Rótulos das categorias de nicho varridas. */
+export const CATEGORY_LABELS: Record<NicheCategory, string> = {
+  historia: "História",
+  financas: "Finanças",
+  saude: "Saúde & fitness",
+  curiosidades: "Curiosidades & mistérios",
+  automotivo: "Automotivo",
+  animais: "Animais",
+  comida: "Comida & receitas",
+  religiao: "Religião",
+};

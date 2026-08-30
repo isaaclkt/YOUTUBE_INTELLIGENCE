@@ -6,6 +6,14 @@ export type {
   MetricSource,
   MetricSourceMap,
 } from "./analysis";
+export type {
+  NicheCategory,
+  RadarChannel,
+  RadarNiche,
+  RadarSweep,
+  RadarVideo,
+  RadarWindow,
+} from "./radar";
 export type { SampleVideo } from "./sample-video";
 export type { Market } from "./market";
 export type { Opportunity, OpportunityPotential } from "./opportunity";

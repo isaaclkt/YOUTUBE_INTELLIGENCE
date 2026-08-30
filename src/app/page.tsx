@@ -1,3 +1,4 @@
+import Link from "next/link";
 import { AnalyzeForm } from "@/components/analyze-form";
 import { HistoryList } from "@/components/history-list";
 import {
@@ -16,6 +17,15 @@ export default async function HomePage() {
 
   return (
     <main className="mx-auto w-full max-w-3xl px-4 py-12 sm:py-16">
+      <nav className="mb-8 flex items-center justify-end">
+        <Link
+          href="/radar"
+          className="rounded-full border border-zinc-800 bg-zinc-900/60 px-3 py-1.5 text-xs font-medium text-zinc-300 transition hover:border-zinc-600 hover:text-white"
+        >
+          📡 Radar — o que está bombando agora →
+        </Link>
+      </nav>
+
       <header className="mb-10 text-center">
         <p className="inline-flex items-center gap-2 rounded-full border border-zinc-800 bg-zinc-900/60 px-3 py-1 text-xs font-medium text-zinc-400">
           <span className="h-2 w-2 rounded-full bg-red-500" />

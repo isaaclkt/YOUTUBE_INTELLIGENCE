@@ -2,8 +2,10 @@ import type { ServiceContainer } from "../contracts";
 import { createMockServices } from "../mock";
 import { MockAIInterpreter } from "../mock/mock-ai-interpreter";
 import { MockDataCollector } from "../mock/mock-data-collector";
+import { MockRadarProvider } from "../mock/mock-radar-provider";
 import { RealAIInterpreter } from "./ai-interpreter/real-ai-interpreter";
 import { YouTubeDataCollector } from "./data-collector/youtube-data-collector";
+import { RadarYouTubeProvider } from "./radar/radar-youtube-provider";
 
 /**
  * Contêiner do modo "real" na fase atual:
@@ -18,5 +20,6 @@ export function createRealServices(): ServiceContainer {
     ...createMockServices(),
     dataCollector: new YouTubeDataCollector(new MockDataCollector()),
     aiInterpreter: new RealAIInterpreter(new MockAIInterpreter()),
+    radarProvider: new RadarYouTubeProvider(new MockRadarProvider()),
   };
 }

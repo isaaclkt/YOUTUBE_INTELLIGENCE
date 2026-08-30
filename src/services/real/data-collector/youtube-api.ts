@@ -61,6 +61,7 @@ interface YouTubeVideosResponse {
 
 export interface YouTubeChannel {
   id?: string;
+  snippet?: { title?: string; publishedAt?: string };
   statistics?: {
     viewCount?: string;
     subscriberCount?: string;
@@ -119,22 +120,28 @@ export async function searchVideos(
     query: string;
     relevanceLanguage: string;
     regionCode: string;
-    order: "relevance" | "date";
+    order: "relevance" | "date" | "viewCount";
+    /** RFC 3339 — só vídeos publicados depois deste instante. */
+    publishedAfter?: string;
   },
   apiKey: string,
   ledger: QuotaLedger
 ): Promise<YouTubeSearchResponse> {
+  const params: Record<string, string> = {
+    part: "snippet",
+    type: "video",
+    maxResults: "50",
+    q: options.query,
+    relevanceLanguage: options.relevanceLanguage,
+    regionCode: options.regionCode,
+    order: options.order,
+  };
+  if (options.publishedAfter) {
+    params.publishedAfter = options.publishedAfter;
+  }
   return cachedGet<YouTubeSearchResponse>(
     "search",
-    {
-      part: "snippet",
-      type: "video",
-      maxResults: "50",
-      q: options.query,
-      relevanceLanguage: options.relevanceLanguage,
-      regionCode: options.regionCode,
-      order: options.order,
-    },
+    params,
     QUOTA_COSTS.search,
     `search.list/${options.order}`,
     apiKey,
@@ -181,7 +188,7 @@ export async function fetchChannels(
   for (const group of chunk(ids, 50)) {
     const response = await cachedGet<YouTubeChannelsResponse>(
       "channels",
-      { part: "statistics", id: group.join(","), maxResults: "50" },
+      { part: "statistics,snippet", id: group.join(","), maxResults: "50" },
       QUOTA_COSTS.channels,
       "channels.list",
       apiKey,

@@ -3,6 +3,7 @@ import { MockAIInterpreter } from "./mock-ai-interpreter";
 import { MockDataCollector } from "./mock-data-collector";
 import { MockMetricsEngine } from "./mock-metrics-engine";
 import { MockOpportunityEngine } from "./mock-opportunity-engine";
+import { MockRadarProvider } from "./mock-radar-provider";
 import { MockRecommendationEngine } from "./mock-recommendation-engine";
 import { MockScoringEngine } from "./mock-scoring-engine";
 
@@ -15,5 +16,6 @@ export function createMockServices(): ServiceContainer {
     opportunityEngine: new MockOpportunityEngine(),
     aiInterpreter: new MockAIInterpreter(),
     recommendationEngine: new MockRecommendationEngine(),
+    radarProvider: new MockRadarProvider(),
   };
 }

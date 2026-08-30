@@ -2,6 +2,7 @@ import type { AIInterpreter } from "./ai-interpreter";
 import type { DataCollector } from "./data-collector";
 import type { MetricsEngine } from "./metrics-engine";
 import type { OpportunityEngine } from "./opportunity-engine";
+import type { RadarProvider } from "./radar-provider";
 import type { RecommendationEngine } from "./recommendation-engine";
 import type { ScoringEngine } from "./scoring-engine";
 
@@ -17,4 +18,5 @@ export interface ServiceContainer {
   opportunityEngine: OpportunityEngine;
   aiInterpreter: AIInterpreter;
   recommendationEngine: RecommendationEngine;
+  radarProvider: RadarProvider;
 }

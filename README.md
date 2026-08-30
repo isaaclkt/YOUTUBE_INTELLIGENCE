@@ -99,6 +99,16 @@ e reinicie. Uma análise nova custa **~204 unidades de quota** (2×
 tier gratuito de 10.000 unidades. Tendência continua estimada (selo
 "estimado" na UI) até a fonte de tendências ser conectada.
 
+**Quota do Radar** (medido): uma varredura nova custa **~814 unidades**
+(8 consultas-semente × 100 + `videos.list`/`channels.list` ≈ 14). Os 7
+pares na janela padrão ≈ 5,7k/dia; todos os 7 pares × 3 janelas frescas
+≈ 17k — **não cabe** nos 10k/dia. Proteções: cache de 12h por
+par+janela e um **teto diário do Radar de 8.000 unidades**
+(`RADAR_DAILY_QUOTA_BUDGET`) — atingido o teto, o Radar avisa em vez de
+consumir a quota das análises. Alternativa: reduzir as
+consultas-semente em `src/services/real/radar/seed-queries.ts` (cada
+categoria removida economiza 100u/varredura, ao custo de cobertura).
+
 ### Migrar SQLite → Postgres
 
 1. `prisma/schema.prisma`: `provider = "postgresql"`
@@ -125,6 +135,8 @@ muda.
 | Selo "estimado" nas métricas sem fonte real              | **IMPLEMENTADO** |
 | Card "Ver dados brutos" (amostra com VPH, outliers, canais fortes) | **IMPLEMENTADO** |
 | Card "Títulos que estão performando agora" (outliers reais por VPH) | **IMPLEMENTADO** |
+| Aba **Radar** (/radar): vídeos estourando, canais novos explodindo, nichos em aquecimento; filtros de par idioma+país e janela 24h/7d/30d | **IMPLEMENTADO** |
+| Radar: cache de varredura 12h + teto diário de quota (8.000u) | **IMPLEMENTADO** |
 | IA guiada pelos padrões de título dos outliers reais     | **IMPLEMENTADO** (aviso de placeholder quando em fallback) |
 | Fonte de tendências (série de 12 semanas, sinais/país)   | **MOCK** (selo "estimado") |
 | Pesos da normalização (a recalibrar com histórico real)  | **MOCK**         |

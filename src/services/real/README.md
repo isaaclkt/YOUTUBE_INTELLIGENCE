@@ -10,6 +10,7 @@ existe de real entra; o restante reusa o mock até ser conectado.
 | ----------------- | ------------------ | ----------------------------------------- | --------------- |
 | `ai-interpreter/` | `AIInterpreter`    | Anthropic API (`claude-sonnet-5`)         | **IMPLEMENTADO** (fallback automático p/ mock) |
 | `data-collector/` | `DataCollector`    | YouTube Data API v3 (vídeos/canais reais; tendência ainda mock, selo "estimado") | **IMPLEMENTADO** (fallback automático p/ mock) |
+| `radar/`          | `RadarProvider`    | YouTube Data API v3 (varredura por categoria: ~814u, cache 12h, teto diário 8.000u) | **IMPLEMENTADO** (fallback automático p/ mock) |
 | `trends/`         | (parte da coleta)  | Google Trends / SerpAPI / DataForSEO      | PLANEJADO       |
 
 ## Como conectar os próximos
