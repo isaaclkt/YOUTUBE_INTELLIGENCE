@@ -39,7 +39,7 @@ export default async function AnalysisPage(props: PageProps<"/analysis/[id]">) {
     <main className="mx-auto w-full max-w-4xl px-4 py-8 sm:py-12">
       <nav className="mb-6 flex items-center justify-between">
         <Link
-          href="/"
+          href="/analisar"
           className="text-sm text-zinc-400 transition hover:text-zinc-200"
         >
           ← Nova análise

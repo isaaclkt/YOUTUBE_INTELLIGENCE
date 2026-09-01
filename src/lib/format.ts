@@ -31,6 +31,30 @@ export function formatVideoAge(publishedAtIso: string): string {
   return `${Math.round(days / 365.25)} a`;
 }
 
+/** Saudação por hora local (America/Sao_Paulo). */
+export function greetingForNow(): string {
+  const hour = Number(
+    new Intl.DateTimeFormat("pt-BR", {
+      hour: "numeric",
+      hour12: false,
+      timeZone: "America/Sao_Paulo",
+    }).format(new Date())
+  );
+  if (hour >= 5 && hour < 12) return "Bom dia";
+  if (hour >= 12 && hour < 18) return "Boa tarde";
+  return "Boa noite";
+}
+
+/** Data longa (pt-BR) para o cabeçalho do painel. */
+export function formatLongDate(): string {
+  return new Intl.DateTimeFormat("pt-BR", {
+    weekday: "long",
+    day: "numeric",
+    month: "long",
+    timeZone: "America/Sao_Paulo",
+  }).format(new Date());
+}
+
 /** Formata uma data ISO para exibição (pt-BR). Usado só em Server Components. */
 export function formatDateTime(iso: string): string {
   return new Date(iso).toLocaleString("pt-BR", {

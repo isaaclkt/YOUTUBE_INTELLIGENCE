@@ -2,7 +2,6 @@ import type { Metadata } from "next";
 import Link from "next/link";
 import { HeatingNichesCard } from "@/components/radar/heating-niches-card";
 import { RadarFilters } from "@/components/radar/radar-filters";
-import { RadarTabs } from "@/components/radar/radar-tabs";
 import { RisingChannelsCard } from "@/components/radar/rising-channels-card";
 import { TrendingVideosCard } from "@/components/radar/trending-videos-card";
 import { APP_DISCLAIMER } from "@/lib/constants";
@@ -23,16 +22,6 @@ export default async function RadarPage(props: PageProps<"/radar">) {
 
   return (
     <main className="mx-auto w-full max-w-4xl px-4 py-8 sm:py-12">
-      <nav className="mb-6">
-        <Link
-          href="/"
-          className="text-sm text-zinc-400 transition hover:text-zinc-200"
-        >
-          ← Analisar um tema
-        </Link>
-      </nav>
-      <RadarTabs active="/radar" />
-
       <header className="mb-6">
         <h1 className="text-2xl font-bold tracking-tight text-zinc-50 sm:text-3xl">
           Radar

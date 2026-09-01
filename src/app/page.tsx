@@ -1,84 +1,133 @@
-import { AnalyzeForm } from "@/components/analyze-form";
+import Link from "next/link";
 import { HistoryList } from "@/components/history-list";
-import { NavCard } from "@/components/nav-card";
-import { APP_DISCLAIMER, APP_NAME, HISTORY_LIMIT } from "@/lib/constants";
-import { listRecentAnalyses } from "@/lib/repository";
+import { StatCard } from "@/components/stat-card";
+import { RADAR_WINDOWS } from "@/lib/constants";
+import {
+  formatCompact,
+  formatDateTime,
+  formatLongDate,
+  greetingForNow,
+} from "@/lib/format";
+import { getDashboardSummary } from "@/services/dashboard";
 
-// O histórico muda a cada análise — nunca servir esta página de cache.
+// Painel muda com caches e análises — nunca servir de cache do Next.
 export const dynamic = "force-dynamic";
 
-export default async function HomePage(props: PageProps<"/">) {
-  const searchParams = await props.searchParams;
-  const rawQuery = Array.isArray(searchParams.q)
-    ? searchParams.q[0]
-    : searchParams.q;
-  const history = await listRecentAnalyses(HISTORY_LIMIT);
+export default async function OverviewPage() {
+  const summary = await getDashboardSummary();
+  const windowLabel = summary.sweep
+    ? RADAR_WINDOWS.find((w) => w.key === summary.sweep?.window)?.label ??
+      summary.sweep.window
+    : null;
 
   return (
-    <main className="mx-auto w-full max-w-3xl px-4 py-10 sm:py-14">
-      <header className="mb-8 text-center">
-        <p className="inline-flex items-center gap-2 rounded-full border border-zinc-800 bg-zinc-900/60 px-3 py-1 text-xs font-medium text-zinc-400">
-          <span className="h-2 w-2 rounded-full bg-red-500" />
-          {APP_NAME}
-        </p>
-        <h1 className="mt-4 text-2xl font-bold tracking-tight text-zinc-50 sm:text-3xl">
-          Inteligência para vídeos longos
+    <main className="mx-auto w-full max-w-5xl px-4 py-8 sm:py-10">
+      <header className="mb-6">
+        <h1 className="text-2xl font-bold tracking-tight text-zinc-50 sm:text-3xl">
+          {greetingForNow()} 👋
         </h1>
-        <p className="mx-auto mt-2 max-w-xl text-sm leading-relaxed text-zinc-400">
-          Radar do que está bombando, análise de temas e histórico — sem
-          promessas de viral.
+        <p className="mt-1 text-sm capitalize text-zinc-500">
+          {formatLongDate()} · resumo do dia
         </p>
       </header>
 
-      {/* Painel de navegação */}
-      <section className="mb-12 grid grid-cols-1 gap-4 sm:grid-cols-3">
-        <NavCard
+      {/* Próximo passo sugerido */}
+      <section className="mb-8 rounded-2xl border border-red-500/30 bg-gradient-to-br from-red-500/10 to-zinc-900/60 p-5 sm:p-6">
+        <p className="flex items-center gap-2 text-[11px] font-semibold uppercase tracking-widest text-red-300/80">
+          Próximo passo sugerido
+          <span className="rounded-full bg-zinc-900/80 px-1.5 py-0.5 text-[10px] font-medium lowercase text-zinc-500 ring-1 ring-zinc-700/60">
+            {summary.nextStep.generatedBy === "ai" ? "ia" : "motor"}
+          </span>
+        </p>
+        <p className="mt-2 text-sm leading-relaxed text-zinc-200 sm:text-base">
+          {summary.nextStep.text}
+        </p>
+        <div className="mt-4 flex flex-wrap gap-3">
+          {summary.nextStep.actions.map((action) => (
+            <Link
+              key={action.href}
+              href={action.href}
+              className="rounded-xl bg-red-600 px-4 py-2 text-xs font-semibold text-white transition hover:bg-red-500"
+            >
+              {action.label}
+            </Link>
+          ))}
+        </div>
+      </section>
+
+      {/* Métricas do dia */}
+      <section className="mb-10 grid grid-cols-2 gap-4 lg:grid-cols-5">
+        <StatCard
+          label="Outliers na varredura"
+          value={summary.sweep ? String(summary.sweep.outliers) : "—"}
+          hint={
+            summary.sweep
+              ? `${summary.sweep.flag} ${summary.sweep.pairLabel} · ${windowLabel}`
+              : "sem varredura em cache"
+          }
           href="/radar"
-          emoji="📡"
-          title="Radar"
-          description="O que está bombando agora em vídeos longos (4min+), por idioma e país — outliers, canais explodindo e nichos em aquecimento."
-          highlight
-          className="sm:col-span-3"
         />
-        <NavCard
-          href="#analisar"
-          emoji="🔎"
-          title="Analisar tema"
-          description="Vale a pena criar conteúdo sobre esse tema? Demanda, concorrência e saturação."
+        <StatCard
+          label="Nichos nascendo"
+          value={
+            summary.nichesCount !== null ? String(summary.nichesCount) : "—"
+          }
+          hint={
+            summary.nichesCount !== null
+              ? "ativos na última detecção"
+              : "abra a aba para detectar"
+          }
+          href="/radar/nichos"
         />
-        <NavCard
-          href="/radar/shorts"
-          emoji="🎬"
-          title="Shorts Radar"
-          description="Fonte de ideias para adaptar em vídeos longos — temas e ganchos, não formato."
+        <StatCard
+          label="Canais em ascensão"
+          value={
+            summary.ascendingCount !== null
+              ? String(summary.ascendingCount)
+              : "—"
+          }
+          hint={
+            summary.ascendingCount !== null
+              ? "consistentes monitorados"
+              : "abra a aba para avaliar"
+          }
+          href="/radar/canais"
         />
-        <NavCard
-          href="#historico"
-          emoji="🕘"
-          title="Histórico"
-          description="Suas últimas análises de tema, com veredito e score."
+        <StatCard
+          label="Quota do dia"
+          value={formatCompact(summary.quota.spent)}
+          hint={`restam ${formatCompact(summary.quota.remaining)} de ${formatCompact(summary.quota.limit)}`}
+        />
+        <StatCard
+          label="Análises"
+          value={String(summary.analysesTotal)}
+          hint={`${summary.analysesLast24h} nas últimas 24h`}
+          href="/historico"
         />
       </section>
 
-      {/* Análise de tema */}
-      <section id="analisar" className="scroll-mt-8">
-        <h2 className="mb-3 text-xs font-semibold uppercase tracking-widest text-zinc-500">
-          🔎 Analisar tema
-        </h2>
-        <AnalyzeForm initialQuery={rawQuery?.slice(0, 120) ?? ""} />
+      {/* Últimas análises */}
+      <section>
+        <div className="mb-3 flex items-baseline justify-between">
+          <h2 className="text-xs font-semibold uppercase tracking-widest text-zinc-500">
+            Últimas análises
+          </h2>
+          <Link
+            href="/historico"
+            className="text-xs text-zinc-400 transition hover:text-zinc-200"
+          >
+            ver histórico →
+          </Link>
+        </div>
+        <HistoryList items={summary.recent} />
       </section>
 
-      {/* Histórico */}
-      <section id="historico" className="mt-12 scroll-mt-8">
-        <h2 className="mb-3 text-xs font-semibold uppercase tracking-widest text-zinc-500">
-          🕘 Últimas análises
-        </h2>
-        <HistoryList items={history} />
-      </section>
-
-      <footer className="mt-16 text-center text-xs text-zinc-600">
-        {APP_DISCLAIMER}
-      </footer>
+      {summary.sweep ? (
+        <p className="mt-8 text-center text-xs text-zinc-600">
+          Última varredura: {formatDateTime(summary.sweep.sweptAt)} ·{" "}
+          {summary.sweep.replicable} vídeos replicáveis no pool
+        </p>
+      ) : null}
     </main>
   );
 }

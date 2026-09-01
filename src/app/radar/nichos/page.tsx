@@ -1,7 +1,6 @@
 import type { Metadata } from "next";
 import Link from "next/link";
 import { RadarFilters } from "@/components/radar/radar-filters";
-import { RadarTabs } from "@/components/radar/radar-tabs";
 import {
   APP_DISCLAIMER,
   CATEGORY_LABELS,
@@ -27,13 +26,6 @@ export default async function NichosPage(props: PageProps<"/radar/nichos">) {
 
   return (
     <main className="mx-auto w-full max-w-4xl px-4 py-8 sm:py-12">
-      <nav className="mb-6">
-        <Link href="/" className="text-sm text-zinc-400 transition hover:text-zinc-200">
-          ← Início
-        </Link>
-      </nav>
-      <RadarTabs active="/radar/nichos" />
-
       <header className="mb-6">
         <h1 className="text-2xl font-bold tracking-tight text-zinc-50 sm:text-3xl">
           🌱 Nichos Nascendo
@@ -124,7 +116,7 @@ export default async function NichosPage(props: PageProps<"/radar/nichos">) {
                   </ul>
                   <div className="mt-3 flex gap-3 border-t border-zinc-800/60 pt-3 text-xs">
                     <Link
-                      href={`/?q=${encodeURIComponent(niche.term)}#analisar`}
+                      href={`/analisar?q=${encodeURIComponent(niche.term)}`}
                       className="text-zinc-300 hover:text-white hover:underline"
                     >
                       🔎 Analisar tema

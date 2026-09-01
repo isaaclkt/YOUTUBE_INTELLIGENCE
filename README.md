@@ -158,7 +158,7 @@ muda.
 | 🌱 Nichos Nascendo (/radar/nichos): clusters de n-gramas nos vídeos fortes long-form, 3+ canais distintos, tendência novo/crescendo/estável, IA só nomeia; custo extra 0 (reusa o cache do Radar) | **IMPLEMENTADO** |
 | 🚀 Canais em Ascensão (/radar/canais): consistência via playlist de uploads (~1u/canal, máx. 8/varredura, ≈12u medidos), filtros de porte, cache 12h, dentro do teto do Radar | **IMPLEMENTADO** |
 | Sementes do Radar reformuladas para formatos dark por categoria | **IMPLEMENTADO** |
-| Home em painel (Radar em destaque, Analisar tema, Shorts Radar, Histórico) | **IMPLEMENTADO** |
+| Painel de trabalho diário: Visão Geral (saudação, 5 cards de métrica lidos só de cache/DB, "Próximo passo" do motor com frase da IA cacheada 12h), sidebar fixa responsiva, /analisar e /historico próprios | **IMPLEMENTADO** |
 | Radar: cache de varredura 12h + teto diário de quota (8.000u) | **IMPLEMENTADO** |
 | IA guiada pelos padrões de título dos outliers reais     | **IMPLEMENTADO** (aviso de placeholder quando em fallback) |
 | Outliers/fórmulas 100% long-form (Shorts excluídos dos padrões e do card) | **IMPLEMENTADO** |

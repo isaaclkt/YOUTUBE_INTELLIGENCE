@@ -62,6 +62,17 @@ export async function getApiCache(key: string): Promise<string | null> {
   return row.payload;
 }
 
+/** Entradas de cache não-expiradas por prefixo (leitura de painel). */
+export async function listApiCacheByPrefix(
+  prefix: string
+): Promise<Array<{ key: string; payload: string; createdAt: Date }>> {
+  return prisma.apiCache.findMany({
+    where: { key: { startsWith: prefix }, expiresAt: { gt: new Date() } },
+    orderBy: { createdAt: "desc" },
+    select: { key: true, payload: true, createdAt: true },
+  });
+}
+
 export async function putApiCache(
   key: string,
   payload: string,
@@ -73,6 +84,20 @@ export async function putApiCache(
     update: { payload, expiresAt },
     create: { key, payload, expiresAt },
   });
+}
+
+/** Contagem de análises: total e nas últimas 24h (painel). */
+export async function countAnalyses(): Promise<{
+  total: number;
+  last24h: number;
+}> {
+  const [total, last24h] = await Promise.all([
+    prisma.analysis.count(),
+    prisma.analysis.count({
+      where: { createdAt: { gte: new Date(Date.now() - 86_400_000) } },
+    }),
+  ]);
+  return { total, last24h };
 }
 
 export async function listRecentAnalyses(

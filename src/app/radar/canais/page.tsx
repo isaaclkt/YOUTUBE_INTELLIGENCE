@@ -1,7 +1,6 @@
 import type { Metadata } from "next";
 import Link from "next/link";
 import { RadarFilters } from "@/components/radar/radar-filters";
-import { RadarTabs } from "@/components/radar/radar-tabs";
 import { APP_DISCLAIMER, CATEGORY_LABELS } from "@/lib/constants";
 import { formatCompact, formatDateTime, formatVideoAge } from "@/lib/format";
 import { parseRadarParams } from "@/lib/radar-params";
@@ -31,13 +30,6 @@ export default async function CanaisPage(props: PageProps<"/radar/canais">) {
 
   return (
     <main className="mx-auto w-full max-w-4xl px-4 py-8 sm:py-12">
-      <nav className="mb-6">
-        <Link href="/" className="text-sm text-zinc-400 transition hover:text-zinc-200">
-          ← Início
-        </Link>
-      </nav>
-      <RadarTabs active="/radar/canais" />
-
       <header className="mb-6">
         <h1 className="text-2xl font-bold tracking-tight text-zinc-50 sm:text-3xl">
           🚀 Canais em Ascensão

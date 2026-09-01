@@ -39,21 +39,9 @@ export default async function WindowPage(props: PageProps<"/window">) {
     ? RADAR_PAIRS.map((p) => ({ language: p.language, country: p.country }))
     : [...WINDOW_DEFAULT_TARGETS];
 
-  const backNav = (
-    <nav className="mb-6 flex items-center justify-between">
-      <Link href="/" className="text-sm text-zinc-400 transition hover:text-zinc-200">
-        ← Início
-      </Link>
-      <Link href="/radar" className="text-sm text-zinc-400 transition hover:text-zinc-200">
-        📡 Radar
-      </Link>
-    </nav>
-  );
-
   if (rawQuery.length < QUERY_MIN_LENGTH || rawQuery.length > QUERY_MAX_LENGTH) {
     return (
       <main className="mx-auto w-full max-w-3xl px-4 py-8 sm:py-12">
-        {backNav}
         <div className="rounded-2xl border border-zinc-800 bg-zinc-900/60 px-5 py-6 text-sm text-zinc-400">
           Informe um tema válido para verificar (use o botão 🌍 numa análise
           ou num item do Radar).
@@ -71,7 +59,6 @@ export default async function WindowPage(props: PageProps<"/window">) {
   if (quota.remaining < WINDOW_QUOTA_WARN_THRESHOLD && !confirmed) {
     return (
       <main className="mx-auto w-full max-w-3xl px-4 py-8 sm:py-12">
-        {backNav}
         <div className="rounded-2xl border border-amber-500/30 bg-amber-500/10 px-5 py-6 text-sm text-amber-200">
           <p className="font-semibold">Quota do dia baixa</p>
           <p className="mt-1.5 text-amber-200/80">
@@ -107,8 +94,6 @@ export default async function WindowPage(props: PageProps<"/window">) {
 
   return (
     <main className="mx-auto w-full max-w-4xl px-4 py-8 sm:py-12">
-      {backNav}
-
       <header className="mb-6">
         <p className="text-xs font-semibold uppercase tracking-widest text-zinc-500">
           🌍 Verificador de Janela entre Idiomas
