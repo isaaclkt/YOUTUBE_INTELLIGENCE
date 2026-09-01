@@ -95,21 +95,24 @@ const RELEVANCE_LANGUAGE: Record<string, string> = {
 };
 
 function sweepCacheKey(input: RadarSweepInput): string {
-  // v5: totalVideos no canal + filtro grinder + score de ascensão.
-  return `radar:v5:${input.format}:${input.language}:${input.country}:${input.window}`;
+  // v8: pool de sinal (outliers + topo replicável) no payload.
+  return `radar:v8:${input.format}:${input.language}:${input.country}:${input.window}`;
 }
+
+/** Cap do payload de outliers persistido na varredura. */
+const OUTLIER_VIDEOS_CAP = 120;
 
 function quotaDayKey(): string {
   return `radar-quota:${new Date().toISOString().slice(0, 10)}`;
 }
 
-async function getRadarQuotaSpentToday(): Promise<number> {
+export async function getRadarQuotaSpentToday(): Promise<number> {
   const raw = await getApiCache(quotaDayKey());
   const parsed = raw === null ? 0 : Number(raw);
   return Number.isFinite(parsed) ? parsed : 0;
 }
 
-async function addRadarQuotaSpent(units: number): Promise<void> {
+export async function addRadarQuotaSpent(units: number): Promise<void> {
   const spent = await getRadarQuotaSpentToday();
   await putApiCache(quotaDayKey(), String(spent + units), 48 * 3_600_000);
 }
@@ -338,6 +341,20 @@ export class RadarYouTubeProvider implements RadarProvider {
           ? buildRisingChannels(radarVideos, channelById, now)
           : [],
       heatingNiches: buildHeatingNiches(radarVideos),
+      // Pool de sinal para Nichos/Canais: outliers primeiro (sinal mais
+      // forte) + topo replicável por VPH — canais estabelecidos raramente
+      // disparam a régua de outlier, mas ainda mapeiam temas quentes.
+      outlierVideos:
+        input.format === "longform"
+          ? [
+              ...radarVideos
+                .filter((v) => v.isOutlier)
+                .sort((a, b) => b.vph - a.vph),
+              ...radarVideos
+                .filter((v) => !v.isOutlier && v.isReplicable)
+                .sort((a, b) => b.vph - a.vph),
+            ].slice(0, OUTLIER_VIDEOS_CAP)
+          : [],
     };
 
     console.info(

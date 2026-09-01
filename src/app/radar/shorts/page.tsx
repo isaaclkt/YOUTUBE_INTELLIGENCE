@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 import Link from "next/link";
 import { HeatingNichesCard } from "@/components/radar/heating-niches-card";
 import { RadarFilters } from "@/components/radar/radar-filters";
+import { RadarTabs } from "@/components/radar/radar-tabs";
 import { TrendingVideosCard } from "@/components/radar/trending-videos-card";
 import { APP_DISCLAIMER } from "@/lib/constants";
 import { formatDateTime } from "@/lib/format";
@@ -22,20 +23,15 @@ export default async function ShortsRadarPage(
 
   return (
     <main className="mx-auto w-full max-w-4xl px-4 py-8 sm:py-12">
-      <nav className="mb-6 flex items-center justify-between">
-        <Link
-          href="/radar"
-          className="text-sm text-zinc-400 transition hover:text-zinc-200"
-        >
-          ← Radar (vídeos longos)
-        </Link>
+      <nav className="mb-6">
         <Link
           href="/"
           className="text-sm text-zinc-400 transition hover:text-zinc-200"
         >
-          Analisar um tema
+          ← Analisar um tema
         </Link>
       </nav>
+      <RadarTabs active="/radar/shorts" />
 
       <header className="mb-6">
         <h1 className="text-2xl font-bold tracking-tight text-zinc-50 sm:text-3xl">

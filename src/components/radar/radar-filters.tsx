@@ -29,9 +29,11 @@ function Pill({
 export function RadarFilters({
   params,
   basePath = "/radar",
+  showReplicableToggle = true,
 }: {
   params: RadarParams;
   basePath?: string;
+  showReplicableToggle?: boolean;
 }) {
   const currentPair = pairKey(params.language, params.country);
   const href = (pair: string, window: string, showAll: boolean) =>
@@ -63,19 +65,23 @@ export function RadarFilters({
             {window.label}
           </Pill>
         ))}
-        <span className="mx-1 h-4 w-px bg-zinc-800" />
-        <Pill
-          href={href(currentPair, params.window, false)}
-          active={!params.showAll}
-        >
-          🎯 só replicáveis
-        </Pill>
-        <Pill
-          href={href(currentPair, params.window, true)}
-          active={params.showAll}
-        >
-          mostrar todos
-        </Pill>
+        {showReplicableToggle ? (
+          <>
+            <span className="mx-1 h-4 w-px bg-zinc-800" />
+            <Pill
+              href={href(currentPair, params.window, false)}
+              active={!params.showAll}
+            >
+              🎯 só replicáveis
+            </Pill>
+            <Pill
+              href={href(currentPair, params.window, true)}
+              active={params.showAll}
+            >
+              mostrar todos
+            </Pill>
+          </>
+        ) : null}
       </div>
     </div>
   );

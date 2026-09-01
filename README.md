@@ -155,6 +155,8 @@ muda.
 | Tabela CALIBRÁVEL de tier de RPM por categoria (src/lib/rpm.ts) ponderando "Nichos em aquecimento" | **IMPLEMENTADO** |
 | Canais explodindo: filtro "grinder" (>20 vídeos, <1.000 inscritos) + score "acertou de primeira" (poucos vídeos × outlier recente × razão) + dados de julgamento no card | **IMPLEMENTADO** |
 | 🌍 Verificador de Janela entre Idiomas (/window): mini-análise por mercado, veredito do motor (JANELA ABERTA/DISPUTADO/SATURADO), tradução e leitura por IA, ~102u/idioma, cache 24h, aviso de quota baixa | **IMPLEMENTADO** |
+| 🌱 Nichos Nascendo (/radar/nichos): clusters de n-gramas nos vídeos fortes long-form, 3+ canais distintos, tendência novo/crescendo/estável, IA só nomeia; custo extra 0 (reusa o cache do Radar) | **IMPLEMENTADO** |
+| 🚀 Canais em Ascensão (/radar/canais): consistência via playlist de uploads (~1u/canal, máx. 8/varredura, ≈12u medidos), filtros de porte, cache 12h, dentro do teto do Radar | **IMPLEMENTADO** |
 | Sementes do Radar reformuladas para formatos dark por categoria | **IMPLEMENTADO** |
 | Home em painel (Radar em destaque, Analisar tema, Shorts Radar, Histórico) | **IMPLEMENTADO** |
 | Radar: cache de varredura 12h + teto diário de quota (8.000u) | **IMPLEMENTADO** |

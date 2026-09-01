@@ -16,6 +16,8 @@ export type {
   RadarWindow,
 } from "./radar";
 export type { SampleVideo } from "./sample-video";
+export type { AscendingChannel, AscendingReport } from "./ascending";
+export type { EmergingNiche, NicheReport, NicheTrend } from "./niches";
 export type {
   LanguageWindowCheck,
   WindowInterpretation,

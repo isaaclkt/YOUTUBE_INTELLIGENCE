@@ -87,4 +87,10 @@ export interface RadarSweep {
   trendingVideos: RadarVideo[];
   risingChannels: RadarChannel[];
   heatingNiches: RadarNiche[];
+  /**
+   * Pool de sinal da varredura long-form (cap ~120): outliers primeiro
+   * + topo replicável por VPH — matéria-prima das abas Nichos Nascendo
+   * e Canais em Ascensão sem quota extra. Vazio no formato shorts.
+   */
+  outlierVideos: RadarVideo[];
 }

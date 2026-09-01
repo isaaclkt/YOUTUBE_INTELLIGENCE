@@ -164,6 +164,10 @@ export class MockRadarProvider implements RadarProvider {
       // Canais em ascensão só no Radar long-form (espelha o real).
       risingChannels: input.format === "longform" ? risingChannels : [],
       heatingNiches,
+      outlierVideos:
+        input.format === "longform"
+          ? videos.filter((v) => v.isOutlier).sort((a, b) => b.vph - a.vph)
+          : [],
     };
   }
 }

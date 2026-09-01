@@ -212,6 +212,37 @@ export async function fetchVideos(
   return results;
 }
 
+export interface YouTubePlaylistItemsResponse {
+  items?: Array<{
+    contentDetails?: { videoId?: string; videoPublishedAt?: string };
+  }>;
+}
+
+/**
+ * Últimos uploads de um canal via playlist de uploads (id determinístico:
+ * "UC..." → "UU...", sem chamada extra). Custo: 1 unidade.
+ */
+export async function fetchChannelUploads(
+  channelId: string,
+  maxResults: number,
+  apiKey: string,
+  ledger: QuotaLedger
+): Promise<YouTubePlaylistItemsResponse> {
+  const playlistId = "UU" + channelId.slice(2);
+  return cachedGet<YouTubePlaylistItemsResponse>(
+    "playlistItems",
+    {
+      part: "contentDetails",
+      playlistId,
+      maxResults: String(maxResults),
+    },
+    1,
+    "playlistItems.list",
+    apiKey,
+    ledger
+  );
+}
+
 /** Estatísticas de até N canais (50 ids por chamada de 1 unidade). */
 export async function fetchChannels(
   ids: readonly string[],

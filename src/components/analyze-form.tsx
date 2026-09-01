@@ -17,11 +17,12 @@ import { ExampleChips } from "./example-chips";
 
 /**
  * Formulário da Home. Só estado de UI — a chamada de API vive em
- * src/lib/api-client.ts.
+ * src/lib/api-client.ts. `initialQuery` pré-preenche o tema (vindo,
+ * por exemplo, de um nicho detectado no Radar).
  */
-export function AnalyzeForm() {
+export function AnalyzeForm({ initialQuery = "" }: { initialQuery?: string }) {
   const router = useRouter();
-  const [query, setQuery] = useState("");
+  const [query, setQuery] = useState(initialQuery);
   const [language, setLanguage] = useState<LanguageCode>(DEFAULT_LANGUAGE);
   const [country, setCountry] = useState<CountryCode>(DEFAULT_COUNTRY);
   const [pending, setPending] = useState(false);

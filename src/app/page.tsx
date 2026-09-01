@@ -7,7 +7,11 @@ import { listRecentAnalyses } from "@/lib/repository";
 // O histórico muda a cada análise — nunca servir esta página de cache.
 export const dynamic = "force-dynamic";
 
-export default async function HomePage() {
+export default async function HomePage(props: PageProps<"/">) {
+  const searchParams = await props.searchParams;
+  const rawQuery = Array.isArray(searchParams.q)
+    ? searchParams.q[0]
+    : searchParams.q;
   const history = await listRecentAnalyses(HISTORY_LIMIT);
 
   return (
@@ -61,7 +65,7 @@ export default async function HomePage() {
         <h2 className="mb-3 text-xs font-semibold uppercase tracking-widest text-zinc-500">
           🔎 Analisar tema
         </h2>
-        <AnalyzeForm />
+        <AnalyzeForm initialQuery={rawQuery?.slice(0, 120) ?? ""} />
       </section>
 
       {/* Histórico */}

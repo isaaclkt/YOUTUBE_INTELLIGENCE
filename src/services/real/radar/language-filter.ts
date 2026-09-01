@@ -20,7 +20,7 @@ const NON_LATIN =
 const LATIN = /[a-zA-ZÀ-ɏ]/g;
 
 /** Palavras funcionais frequentes por idioma (minúsculas, sem acento removido). */
-const STOPWORDS: Record<LanguageCode, readonly string[]> = {
+export const STOPWORDS: Record<LanguageCode, readonly string[]> = {
   "pt-BR": ["de", "que", "não", "nao", "para", "com", "uma", "você", "voce", "mais", "por", "isso", "como", "dos", "das", "é", "está", "esta", "tem", "também", "sua", "seu", "fazer", "muito", "quando", "depois", "anos", "dias"],
   en: ["the", "and", "you", "how", "this", "that", "what", "with", "for", "why", "your", "are", "was", "have", "from", "will", "not", "but", "they", "his", "her", "when", "about", "into", "than"],
   es: ["el", "los", "las", "una", "con", "por", "para", "que", "del", "más", "mas", "este", "esta", "pero", "cómo", "como", "qué", "hay", "muy", "años", "cuando", "sobre", "hasta", "tiene", "hacer"],
