@@ -138,6 +138,7 @@ export class MockRadarProvider implements RadarProvider {
         return {
           category,
           outlierCount: outliers.length,
+          replicableOutlierCount: outliers.filter((v) => v.isReplicable).length,
           sampleCount: inCategory.length,
           topOutlierTitle: outliers[0]?.title ?? null,
           topOutlierVideoId: outliers[0]?.videoId ?? null,

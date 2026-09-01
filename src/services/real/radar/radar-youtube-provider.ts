@@ -94,8 +94,8 @@ const RELEVANCE_LANGUAGE: Record<string, string> = {
 };
 
 function sweepCacheKey(input: RadarSweepInput): string {
-  // v3: + filtro kids e classificação "replicável" no payload.
-  return `radar:v3:${input.format}:${input.language}:${input.country}:${input.window}`;
+  // v4: classificador endurecido + replicableOutlierCount nos nichos.
+  return `radar:v4:${input.format}:${input.language}:${input.country}:${input.window}`;
 }
 
 function quotaDayKey(): string {
@@ -296,7 +296,12 @@ export class RadarYouTubeProvider implements RadarProvider {
         publishedAt: new Date(publishedMs).toISOString(),
         vph: Math.round((views / hours) * 10) / 10,
         isOutlier,
-        isReplicable: classifyReplicable(title, channelTitle),
+        isReplicable: classifyReplicable({
+          title,
+          channelTitle,
+          description: video.snippet?.description,
+          tags: video.snippet?.tags,
+        }),
         category: categoryByVideoId.get(id) ?? "curiosidades",
       });
     }
@@ -417,12 +422,16 @@ function buildHeatingNiches(videos: readonly RadarVideo[]): RadarNiche[] {
     const niche = byCategory.get(video.category) ?? {
       category: video.category,
       outlierCount: 0,
+      replicableOutlierCount: 0,
       sampleCount: 0,
       topOutlierTitle: null,
       topOutlierVideoId: null,
     };
     niche.sampleCount += 1;
-    if (video.isOutlier) niche.outlierCount += 1;
+    if (video.isOutlier) {
+      niche.outlierCount += 1;
+      if (video.isReplicable) niche.replicableOutlierCount += 1;
+    }
     byCategory.set(video.category, niche);
   }
 

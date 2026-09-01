@@ -63,6 +63,8 @@ export interface RadarChannel {
 export interface RadarNiche {
   category: NicheCategory;
   outlierCount: number;
+  /** Outliers que também são replicáveis (modo estrito usa este). */
+  replicableOutlierCount: number;
   sampleCount: number;
   /** Exemplo: o outlier de maior VPH da categoria. */
   topOutlierTitle: string | null;

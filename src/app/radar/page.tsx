@@ -7,6 +7,7 @@ import { TrendingVideosCard } from "@/components/radar/trending-videos-card";
 import { APP_DISCLAIMER } from "@/lib/constants";
 import { formatDateTime } from "@/lib/format";
 import { parseRadarParams } from "@/lib/radar-params";
+import { rankNiches } from "@/lib/rpm";
 import { runRadarSweep } from "@/services/radar";
 
 export const metadata: Metadata = { title: "Radar" };
@@ -71,12 +72,37 @@ export default async function RadarPage(props: PageProps<"/radar">) {
             </div>
           ) : null}
 
-          <TrendingVideosCard videos={outcome.sweep.trendingVideos} />
-
-          <div className="grid grid-cols-1 gap-6 lg:grid-cols-2">
-            <RisingChannelsCard channels={outcome.sweep.risingChannels} />
-            <HeatingNichesCard niches={outcome.sweep.heatingNiches} />
-          </div>
+          {(() => {
+            // Modo estrito (padrão): só itens replicáveis (dark-friendly).
+            const { showAll } = params;
+            const trending = outcome.sweep.trendingVideos.filter(
+              (v) => showAll || v.isReplicable
+            );
+            const rising = outcome.sweep.risingChannels.filter(
+              (c) => showAll || c.isReplicable
+            );
+            const niches = rankNiches(outcome.sweep.heatingNiches, {
+              strictReplicable: !showAll,
+            });
+            const hiddenCount =
+              outcome.sweep.trendingVideos.length - trending.length;
+            return (
+              <>
+                {!showAll && hiddenCount > 0 && trending.length === 0 ? (
+                  <div className="rounded-2xl border border-zinc-800 bg-zinc-900/60 px-5 py-4 text-xs text-zinc-400">
+                    Nenhum vídeo replicável nesta varredura — use{" "}
+                    <span className="text-zinc-300">“mostrar todos”</span> para
+                    ver os {hiddenCount} itens não replicáveis.
+                  </div>
+                ) : null}
+                <TrendingVideosCard videos={trending} />
+                <div className="grid grid-cols-1 gap-6 lg:grid-cols-2">
+                  <RisingChannelsCard channels={rising} />
+                  <HeatingNichesCard niches={niches} strict={!showAll} />
+                </div>
+              </>
+            );
+          })()}
 
           <p className="text-center text-xs text-zinc-600">
             Varredura de {formatDateTime(outcome.sweep.sweptAt)} ·{" "}

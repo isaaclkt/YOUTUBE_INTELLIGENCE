@@ -150,6 +150,9 @@ muda.
 | Filtro rígido de idioma + descarte de Shorts no long-form | **IMPLEMENTADO** |
 | Exclusão de conteúdo infantil (madeForKids + heurística de título) | **IMPLEMENTADO** |
 | Classificação "replicável" (dark/faceless) com selo e priorização nos blocos | **IMPLEMENTADO** |
+| Radar em modo estrito por padrão (só replicáveis; toggle "mostrar todos") | **IMPLEMENTADO** |
+| Penalidade forte: podcast/cortes, entrevistas, highlights, trailers, clipes musicais, canal com nome de pessoa (título+descrição+tags) | **IMPLEMENTADO** |
+| Tabela CALIBRÁVEL de tier de RPM por categoria (src/lib/rpm.ts) ponderando "Nichos em aquecimento" | **IMPLEMENTADO** |
 | Sementes do Radar reformuladas para formatos dark por categoria | **IMPLEMENTADO** |
 | Home em painel (Radar em destaque, Analisar tema, Shorts Radar, Histórico) | **IMPLEMENTADO** |
 | Radar: cache de varredura 12h + teto diário de quota (8.000u) | **IMPLEMENTADO** |

@@ -6,6 +6,7 @@ import { TrendingVideosCard } from "@/components/radar/trending-videos-card";
 import { APP_DISCLAIMER } from "@/lib/constants";
 import { formatDateTime } from "@/lib/format";
 import { parseRadarParams } from "@/lib/radar-params";
+import { rankNiches } from "@/lib/rpm";
 import { runRadarSweep } from "@/services/radar";
 
 export const metadata: Metadata = { title: "Shorts Radar" };
@@ -73,11 +74,18 @@ export default async function ShortsRadarPage(
           ) : null}
 
           <TrendingVideosCard
-            videos={outcome.sweep.trendingVideos}
+            videos={outcome.sweep.trendingVideos.filter(
+              (v) => params.showAll || v.isReplicable
+            )}
             title="Shorts estourando"
           />
 
-          <HeatingNichesCard niches={outcome.sweep.heatingNiches} />
+          <HeatingNichesCard
+            niches={rankNiches(outcome.sweep.heatingNiches, {
+              strictReplicable: !params.showAll,
+            })}
+            strict={!params.showAll}
+          />
 
           <p className="text-center text-xs text-zinc-600">
             Varredura de {formatDateTime(outcome.sweep.sweptAt)} ·{" "}

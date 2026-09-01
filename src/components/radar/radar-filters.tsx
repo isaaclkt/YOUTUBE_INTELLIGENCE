@@ -34,6 +34,9 @@ export function RadarFilters({
   basePath?: string;
 }) {
   const currentPair = pairKey(params.language, params.country);
+  const href = (pair: string, window: string, showAll: boolean) =>
+    `${basePath}?pair=${encodeURIComponent(pair)}&window=${window}${showAll ? "&all=1" : ""}`;
+
   return (
     <div className="space-y-3">
       <div className="flex flex-wrap gap-2">
@@ -42,7 +45,7 @@ export function RadarFilters({
           return (
             <Pill
               key={key}
-              href={`${basePath}?pair=${encodeURIComponent(key)}&window=${params.window}`}
+              href={href(key, params.window, params.showAll)}
               active={key === currentPair}
             >
               {pair.flag} {pair.label}
@@ -50,16 +53,29 @@ export function RadarFilters({
           );
         })}
       </div>
-      <div className="flex flex-wrap gap-2">
+      <div className="flex flex-wrap items-center gap-2">
         {RADAR_WINDOWS.map((window) => (
           <Pill
             key={window.key}
-            href={`${basePath}?pair=${encodeURIComponent(currentPair)}&window=${window.key}`}
+            href={href(currentPair, window.key, params.showAll)}
             active={window.key === params.window}
           >
             {window.label}
           </Pill>
         ))}
+        <span className="mx-1 h-4 w-px bg-zinc-800" />
+        <Pill
+          href={href(currentPair, params.window, false)}
+          active={!params.showAll}
+        >
+          🎯 só replicáveis
+        </Pill>
+        <Pill
+          href={href(currentPair, params.window, true)}
+          active={params.showAll}
+        >
+          mostrar todos
+        </Pill>
       </div>
     </div>
   );

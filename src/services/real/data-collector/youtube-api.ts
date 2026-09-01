@@ -52,6 +52,7 @@ export interface YouTubeVideo {
     title?: string;
     channelTitle?: string;
     description?: string;
+    tags?: string[];
   };
   contentDetails?: { duration?: string };
   status?: { madeForKids?: boolean };
