@@ -1,5 +1,6 @@
 import type { SampleVideo } from "@/domain";
 import type { RawVideoStats } from "../../contracts";
+import { parseIsoDuration } from "../radar/video-filters";
 import type { YouTubeChannel, YouTubeVideo } from "./youtube-api";
 
 /**
@@ -95,6 +96,8 @@ function toEnrichedVideo(
     views >= OUTLIER_MIN_VIEWS &&
     views >= OUTLIER_MULTIPLIER * channel.avgViewsPerVideo;
 
+  const durationSeconds = parseIsoDuration(video.contentDetails?.duration);
+
   return {
     videoId: video.id,
     title: video.snippet?.title ?? "(sem título)",
@@ -103,6 +106,7 @@ function toEnrichedVideo(
     views,
     publishedAt: publishedAt.toISOString(),
     vph: Math.round((views / hoursSincePublish) * 10) / 10,
+    ...(durationSeconds > 0 ? { durationSeconds } : {}),
     isOutlier,
     isStrongChannel,
     // internos:

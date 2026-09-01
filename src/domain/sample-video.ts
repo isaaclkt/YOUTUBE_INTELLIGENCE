@@ -14,6 +14,8 @@ export interface SampleVideo {
   publishedAt: string;
   /** Views por hora desde a publicação. */
   vph: number;
+  /** Duração em segundos (ausente em análises antigas). */
+  durationSeconds?: number;
   /** Performando muito acima da média do próprio canal. */
   isOutlier: boolean;
   /** Canal "forte" (muitos inscritos) — pesa na concorrência. */

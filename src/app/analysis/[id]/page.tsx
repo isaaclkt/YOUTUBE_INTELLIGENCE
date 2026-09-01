@@ -70,6 +70,7 @@ export default async function AnalysisPage(props: PageProps<"/analysis/[id]">) {
           <AnglesCard opportunities={result.opportunities} />
           <TitlesCard
             titles={result.titles}
+            formulas={result.titleFormulas}
             placeholder={result.interpretationSource === "template"}
           />
         </div>

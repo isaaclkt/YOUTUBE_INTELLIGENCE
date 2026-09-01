@@ -157,6 +157,8 @@ muda.
 | Home em painel (Radar em destaque, Analisar tema, Shorts Radar, Histórico) | **IMPLEMENTADO** |
 | Radar: cache de varredura 12h + teto diário de quota (8.000u) | **IMPLEMENTADO** |
 | IA guiada pelos padrões de título dos outliers reais     | **IMPLEMENTADO** (aviso de placeholder quando em fallback) |
+| Outliers/fórmulas 100% long-form (Shorts excluídos dos padrões e do card) | **IMPLEMENTADO** |
+| "Fórmulas de título deste nicho" (2–3 padrões nomeados com exemplo real literal; títulos referenciam a fórmula) | **IMPLEMENTADO** |
 | Fonte de tendências (série de 12 semanas, sinais/país)   | **MOCK** (selo "estimado") |
 | Pesos da normalização (a recalibrar com histórico real)  | **MOCK**         |
 | Fórmulas de score (`src/services/mock/formulas.ts`)      | **MOCK**         |

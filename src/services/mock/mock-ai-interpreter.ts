@@ -78,6 +78,7 @@ export class MockAIInterpreter implements AIInterpreter {
       // Templates ignoram os outlierTitles de propósito: extrair padrões
       // estruturais é trabalho da IA real. A UI marca como placeholder.
       titles: buildTitles(topic),
+      titleFormulas: [],
       recommendationSummary: buildRecommendationSummary(topic, scores, verdict),
       generatedBy: "template",
     };

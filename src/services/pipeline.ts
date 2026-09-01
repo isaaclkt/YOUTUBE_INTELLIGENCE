@@ -1,4 +1,5 @@
 import type { AnalysisResult, MetricSource, Topic } from "@/domain";
+import { isLongFormSample } from "@/lib/video-format";
 import { getServices } from "./index";
 
 /**
@@ -31,10 +32,12 @@ export async function runAnalysisPipeline(topic: Topic): Promise<AnalysisResult>
   // 5. Oportunidades numéricas (ranking de mercados)
   const markets = await services.opportunityEngine.rankMarkets(topic, normalized);
 
-  // Títulos reais dos outliers (ordenados por VPH) — a IA extrai os
-  // padrões estruturais do nicho a partir deles. Cap de 15 no prompt.
+  // Títulos reais dos outliers LONG-FORM (ordenados por VPH) — a IA
+  // extrai os padrões do nicho a partir deles. Shorts ficam de fora:
+  // título de Short não serve de fórmula para vídeo longo (nosso
+  // formato). Cap de 15 no prompt.
   const outlierTitles = raw.sampleVideos
-    .filter((video) => video.isOutlier)
+    .filter((video) => video.isOutlier && isLongFormSample(video))
     .sort((a, b) => b.vph - a.vph)
     .map((video) => video.title)
     .slice(0, 15);
@@ -79,6 +82,7 @@ export async function runAnalysisPipeline(topic: Topic): Promise<AnalysisResult>
     markets,
     opportunities: interpretation.angles,
     titles: interpretation.titles,
+    titleFormulas: interpretation.titleFormulas,
     recommendation,
   };
 }

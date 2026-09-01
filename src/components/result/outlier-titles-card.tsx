@@ -1,18 +1,19 @@
 import type { SampleVideo } from "@/domain";
 import { formatCompact, formatVideoAge } from "@/lib/format";
+import { isLongFormSample } from "@/lib/video-format";
 import { Card } from "../card";
 
 /** Quantos outliers exibir no card (a tabela completa fica nos dados brutos). */
 const MAX_ITEMS = 10;
 
 /**
- * Card "Títulos que estão performando agora": os outliers reais do
- * nicho, ordenados por VPH — referência de padrão que funciona hoje.
- * Só renderiza quando a análise tem outliers reais.
+ * Card "Títulos que estão performando agora": os outliers LONG-FORM
+ * reais do nicho, ordenados por VPH — referência de padrão que funciona
+ * hoje no nosso formato (Shorts ficam de fora).
  */
 export function OutlierTitlesCard({ videos }: { videos: SampleVideo[] }) {
   const outliers = videos
-    .filter((video) => video.isOutlier)
+    .filter((video) => video.isOutlier && isLongFormSample(video))
     .sort((a, b) => b.vph - a.vph)
     .slice(0, MAX_ITEMS);
   if (outliers.length === 0) return null;
@@ -20,8 +21,8 @@ export function OutlierTitlesCard({ videos }: { videos: SampleVideo[] }) {
   return (
     <Card title="Títulos que estão performando agora">
       <p className="mb-4 text-xs text-zinc-500">
-        Vídeos reais performando muito acima da média dos próprios canais —
-        referência do padrão de título que funciona neste nicho hoje.
+        Vídeos long-form reais performando muito acima da média dos próprios
+        canais — referência do padrão de título que funciona neste nicho hoje.
       </p>
       <ol className="space-y-3">
         {outliers.map((video) => (

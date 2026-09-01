@@ -28,10 +28,10 @@ import type {
 const ANTHROPIC_MODEL = "claude-sonnet-5";
 
 /**
- * Falha rápido para a UI: 30s de teto POR tentativa, 1 retry
- * (pior caso ~60s) — depois, fallback mock.
+ * Teto POR tentativa, 1 retry (pior caso ~2min) — depois, fallback
+ * mock. 60s: a saída com fórmulas de título é maior e 30s estourava.
  */
-const REQUEST_TIMEOUT_MS = 30_000;
+const REQUEST_TIMEOUT_MS = 60_000;
 const MAX_RETRIES = 1;
 
 /** Schema da resposta — espelha o contrato AIInterpretation. */
@@ -51,9 +51,20 @@ const interpretationSchema = z.object({
       z.object({
         title: z.string().min(1),
         whyItWorks: z.string().min(1),
+        formulaName: z.string().min(1).nullable(),
       })
     )
     .length(3),
+  titleFormulas: z
+    .array(
+      z.object({
+        name: z.string().min(1),
+        pattern: z.string().min(1),
+        realExample: z.string().min(1),
+        whyItWorks: z.string().min(1),
+      })
+    )
+    .max(3),
   recommendationSummary: z.string().min(1),
 });
 
@@ -69,8 +80,8 @@ REGRAS INEGOCIÁVEIS:
 O QUE PRODUZIR:
 - whyPoints: exatamente 3 pontos explicando o score — (1) demanda, (2) concorrência + saturação, (3) tendência — cada um citando os valores da entrada. Em português do Brasil.
 - angles: exatamente 3 ângulos pouco explorados ESPECÍFICOS deste tema (proibido genérico aplicável a qualquer tema, como "X para iniciantes" sem um recorte concreto do assunto). O campo "angle" no idioma do conteúdo; "reason" em português do Brasil, citando pelo menos um número da entrada; "potential" coerente com os scores.
-- titles: exatamente 3 títulos de vídeo prontos para uso, específicos do tema, no idioma do conteúdo. "whyItWorks" em português do Brasil, sem prometer viral.
-  REGRA DOS TÍTULOS: se "titulosDeOutliersReais" vier preenchido, esses são títulos de vídeos que estão performando muito acima da média nos canais deste nicho AGORA. Analise a ESTRUTURA deles (formato, comprimento, uso de números, perguntas, colchetes, maiúsculas, gatilhos e vocabulário próprios do nicho) e gere as 3 sugestões seguindo esses padrões comprovados, adaptados ao tema analisado. NUNCA use fórmulas genéricas de outro nicho (ex.: "eu testei X por 30 dias") se elas não aparecem nos padrões reais. Em "whyItWorks", diga qual padrão real o título segue. Se a lista vier vazia, crie títulos plausíveis para o nicho — ainda assim específicos do tema, nunca fórmula genérica.
+- titleFormulas: se "titulosDeOutliersReais" tiver itens (são títulos de vídeos LONG-FORM performando muito acima da média neste nicho AGORA), extraia 2 a 3 padrões estruturais NOMEADOS desses títulos (ex.: "PERGUNTA + GUIA COMPLETO", "AÇÃO EM CAIXA ALTA + SUSPENSE + 😱", "NÚMERO + ERROS/DICAS + BENEFÍCIO"). Cada padrão com: "name" (nome curto), "pattern" (a fórmula estrutural), "realExample" (UM título copiado LITERALMENTE da lista recebida — nunca inventado) e "whyItWorks" (o que o padrão entrega — por que gera clique NESTE nicho). Tudo no idioma do conteúdo da análise. Se a lista vier vazia, devolva titleFormulas como lista vazia.
+- titles: exatamente 3 títulos de vídeo prontos para uso, específicos do tema, no idioma do conteúdo, cada um seguindo uma das fórmulas extraídas — preencha "formulaName" com o "name" exato da fórmula seguida (use null apenas quando titleFormulas estiver vazia). NUNCA use fórmulas genéricas de outro nicho (ex.: "eu testei X por 30 dias") se elas não aparecem nos padrões reais. "whyItWorks" em português do Brasil, sem prometer viral.
 - recommendationSummary: 2–3 frases em português do Brasil com a recomendação prática, citando 1–2 números da entrada e terminando com um próximo passo concreto.`;
 
 export class RealAIInterpreter implements AIInterpreter {
@@ -139,13 +150,26 @@ export class RealAIInterpreter implements AIInterpreter {
       max_tokens: 8000,
       system: SYSTEM_PROMPT,
       messages: [{ role: "user", content: JSON.stringify(payload) }],
-      output_config: { format: zodOutputFormat(interpretationSchema) },
+      output_config: {
+        format: zodOutputFormat(interpretationSchema),
+        // "medium": interpretação estruturada não precisa de thinking
+        // profundo, e a latência cabe no teto de 60s.
+        effort: "medium",
+      },
     });
 
     const parsed = response.parsed_output;
     if (!parsed) {
       throw new Error("Resposta do modelo não validou contra o schema.");
     }
-    return { ...parsed, generatedBy: "ai" };
+    return {
+      ...parsed,
+      // null (schema) → undefined (domínio)
+      titles: parsed.titles.map(({ formulaName, ...title }) => ({
+        ...title,
+        ...(formulaName ? { formulaName } : {}),
+      })),
+      generatedBy: "ai",
+    };
   }
 }

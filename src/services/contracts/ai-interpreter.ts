@@ -3,6 +3,7 @@ import type {
   Opportunity,
   Scores,
   SuggestedTitle,
+  TitleFormula,
   Topic,
   Verdict,
 } from "@/domain";
@@ -15,9 +16,10 @@ export interface AIInterpretationInput {
   scores: Scores;
   verdict: Verdict;
   /**
-   * Títulos REAIS dos vídeos outliers do nicho, ordenados por VPH
-   * (vazio sem dados reais). A IA extrai os padrões estruturais deles
-   * para gerar sugestões no padrão comprovado do nicho.
+   * Títulos REAIS dos vídeos outliers LONG-FORM (4min+) do nicho,
+   * ordenados por VPH (vazio sem dados reais). Shorts ficam de fora:
+   * título de Short não serve de fórmula para vídeo longo. A IA extrai
+   * os padrões estruturais daqui.
    */
   outlierTitles: string[];
 }
@@ -34,6 +36,12 @@ export interface AIInterpretation {
   angles: Opportunity[];
   /** Exatamente 3 títulos sugeridos, com o porquê de cada um. */
   titles: SuggestedTitle[];
+  /**
+   * 2–3 padrões estruturais nomeados, extraídos dos outlierTitles
+   * (vazio quando não há outliers long-form). Cada título sugerido
+   * referencia uma fórmula via formulaName.
+   */
+  titleFormulas: TitleFormula[];
   /** Texto da recomendação final (veredito e confiança vêm dos scores). */
   recommendationSummary: string;
   /** "ai" = gerado pelo modelo; "template" = placeholders do mock/fallback. */

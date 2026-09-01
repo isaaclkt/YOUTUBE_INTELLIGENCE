@@ -3,7 +3,7 @@ import type { Opportunity } from "./opportunity";
 import type { Recommendation } from "./recommendation";
 import type { SampleVideo } from "./sample-video";
 import type { Scores, Verdict } from "./scores";
-import type { SuggestedTitle } from "./title";
+import type { SuggestedTitle, TitleFormula } from "./title";
 import type { CountryCode, LanguageCode, Topic } from "./topic";
 
 /** Origem de um número exibido na UI: dado real ou estimativa (mock). */
@@ -44,6 +44,8 @@ export interface AnalysisResult {
   opportunities: Opportunity[];
   /** 3 títulos sugeridos. */
   titles: SuggestedTitle[];
+  /** Fórmulas de título do nicho (IA, a partir dos outliers long-form). */
+  titleFormulas?: TitleFormula[];
   recommendation: Recommendation;
 }
 

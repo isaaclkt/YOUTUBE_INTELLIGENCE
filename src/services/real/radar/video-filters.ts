@@ -1,14 +1,14 @@
 import type { RadarFormat } from "@/domain";
+import { LONGFORM_MIN_SECONDS, SHORTS_TITLE_TAG } from "@/lib/video-format";
 
 /**
  * Filtros puros de formato (duração) da varredura do Radar.
  * Long-form = 4min+ E sem "#shorts" no título — cinto e suspensório
  * sobre o videoDuration da API, que às vezes deixa escapar.
+ * Constantes compartilhadas em src/lib/video-format.ts.
  */
 
-export const LONGFORM_MIN_SECONDS = 240;
-
-const SHORTS_TAG = /#shorts?\b/i;
+const SHORTS_TAG = SHORTS_TITLE_TAG;
 
 /** "PT1H2M30S" → segundos. 0 quando ausente/inválido. */
 export function parseIsoDuration(iso: string | undefined): number {
