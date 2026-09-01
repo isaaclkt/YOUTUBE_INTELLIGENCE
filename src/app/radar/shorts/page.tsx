@@ -78,6 +78,7 @@ export default async function ShortsRadarPage(
               (v) => params.showAll || v.isReplicable
             )}
             title="Shorts estourando"
+            windowFromLanguage={params.language}
           />
 
           <HeatingNichesCard

@@ -45,6 +45,8 @@ export interface RadarChannel {
   channelId: string;
   channelTitle: string;
   subscribers: number;
+  /** Total de vídeos publicados pelo canal (channels.list). */
+  totalVideos: number;
   /** Data de criação do canal (ISO), null se desconhecida. */
   channelPublishedAt: string | null;
   /** Soma de views dos vídeos do canal nesta varredura. */

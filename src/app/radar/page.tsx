@@ -95,7 +95,10 @@ export default async function RadarPage(props: PageProps<"/radar">) {
                     ver os {hiddenCount} itens não replicáveis.
                   </div>
                 ) : null}
-                <TrendingVideosCard videos={trending} />
+                <TrendingVideosCard
+                  videos={trending}
+                  windowFromLanguage={params.language}
+                />
                 <div className="grid grid-cols-1 gap-6 lg:grid-cols-2">
                   <RisingChannelsCard channels={rising} />
                   <HeatingNichesCard niches={niches} strict={!showAll} />

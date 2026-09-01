@@ -153,6 +153,8 @@ muda.
 | Radar em modo estrito por padrão (só replicáveis; toggle "mostrar todos") | **IMPLEMENTADO** |
 | Penalidade forte: podcast/cortes, entrevistas, highlights, trailers, clipes musicais, canal com nome de pessoa (título+descrição+tags) | **IMPLEMENTADO** |
 | Tabela CALIBRÁVEL de tier de RPM por categoria (src/lib/rpm.ts) ponderando "Nichos em aquecimento" | **IMPLEMENTADO** |
+| Canais explodindo: filtro "grinder" (>20 vídeos, <1.000 inscritos) + score "acertou de primeira" (poucos vídeos × outlier recente × razão) + dados de julgamento no card | **IMPLEMENTADO** |
+| 🌍 Verificador de Janela entre Idiomas (/window): mini-análise por mercado, veredito do motor (JANELA ABERTA/DISPUTADO/SATURADO), tradução e leitura por IA, ~102u/idioma, cache 24h, aviso de quota baixa | **IMPLEMENTADO** |
 | Sementes do Radar reformuladas para formatos dark por categoria | **IMPLEMENTADO** |
 | Home em painel (Radar em destaque, Analisar tema, Shorts Radar, Histórico) | **IMPLEMENTADO** |
 | Radar: cache de varredura 12h + teto diário de quota (8.000u) | **IMPLEMENTADO** |

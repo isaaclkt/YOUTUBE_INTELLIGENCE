@@ -3,9 +3,11 @@ import { createMockServices } from "../mock";
 import { MockAIInterpreter } from "../mock/mock-ai-interpreter";
 import { MockDataCollector } from "../mock/mock-data-collector";
 import { MockRadarProvider } from "../mock/mock-radar-provider";
+import { MockWindowChecker } from "../mock/mock-window-checker";
 import { RealAIInterpreter } from "./ai-interpreter/real-ai-interpreter";
 import { YouTubeDataCollector } from "./data-collector/youtube-data-collector";
 import { RadarYouTubeProvider } from "./radar/radar-youtube-provider";
+import { YouTubeWindowChecker } from "./window/youtube-window-checker";
 
 /**
  * Contêiner do modo "real" na fase atual:
@@ -21,5 +23,6 @@ export function createRealServices(): ServiceContainer {
     dataCollector: new YouTubeDataCollector(new MockDataCollector()),
     aiInterpreter: new RealAIInterpreter(new MockAIInterpreter()),
     radarProvider: new RadarYouTubeProvider(new MockRadarProvider()),
+    windowChecker: new YouTubeWindowChecker(new MockWindowChecker()),
   };
 }

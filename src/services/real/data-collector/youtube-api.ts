@@ -17,6 +17,25 @@ const BASE_URL = "https://www.googleapis.com/youtube/v3";
 /** TTL do cache: análises repetidas em 24h não gastam quota. */
 export const CACHE_TTL_MS = 24 * 60 * 60 * 1000;
 
+/** Quota diária do tier gratuito da YouTube Data API. */
+export const DAILY_QUOTA_LIMIT = 10_000;
+
+function dailyQuotaKey(): string {
+  return `yt-quota:${new Date().toISOString().slice(0, 10)}`;
+}
+
+/** Total de unidades gastas HOJE (todas as frentes: análise, radar, janela). */
+export async function getDailyQuotaSpent(): Promise<number> {
+  const raw = await getApiCache(dailyQuotaKey());
+  const parsed = raw === null ? 0 : Number(raw);
+  return Number.isFinite(parsed) ? parsed : 0;
+}
+
+async function addDailyQuotaSpent(units: number): Promise<void> {
+  const spent = await getDailyQuotaSpent();
+  await putApiCache(dailyQuotaKey(), String(spent + units), 48 * 3_600_000);
+}
+
 export const QUOTA_COSTS = {
   search: 100,
   videos: 1,
@@ -114,6 +133,7 @@ async function cachedGet<T>(
   ledger.units += quotaCost;
   ledger.calls.push(`${label} (${quotaCost}u)`);
   await putApiCache(cacheKey, JSON.stringify(json), CACHE_TTL_MS);
+  await addDailyQuotaSpent(quotaCost);
   return json;
 }
 

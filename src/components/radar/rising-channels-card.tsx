@@ -8,8 +8,10 @@ export function RisingChannelsCard({ channels }: { channels: RadarChannel[] }) {
   return (
     <Card title="Canais novos explodindo">
       <p className="mb-4 text-xs text-zinc-500">
-        Canais pequenos ou recentes cujos vídeos na janela têm VPH alto — o
-        sinal mais forte de nicho aberto. A razão é views recentes ÷ inscritos.
+        Canais pequenos ou recentes que acertaram de primeira: poucos vídeos
+        publicados, outlier recente e razão views/inscritos alta. Canais
+        &quot;grinder&quot; (muitos vídeos, quase nenhum inscrito) ficam de
+        fora — o formato deles já provou que não funciona.
       </p>
       <ol className="space-y-3">
         {channels.map((channel) => (
@@ -32,12 +34,14 @@ export function RisingChannelsCard({ channels }: { channels: RadarChannel[] }) {
                 </span>
               ) : null}
               <p className="mt-0.5 text-xs text-zinc-500">
-                {formatCompact(channel.subscribers)} inscritos
+                {formatCompact(channel.subscribers)} inscritos ·{" "}
+                {channel.totalVideos} vídeos no canal
                 {channel.channelPublishedAt
                   ? ` · canal há ${formatVideoAge(channel.channelPublishedAt)}`
                   : ""}{" "}
                 · {formatCompact(channel.recentViews)} views na janela · melhor
-                vídeo {formatCompact(channel.bestVph)}/h
+                vídeo {formatCompact(channel.bestVph)}/h ·{" "}
+                {formatCompact(channel.viewsPerSubscriber)}× views/inscritos
               </p>
             </div>
           </li>

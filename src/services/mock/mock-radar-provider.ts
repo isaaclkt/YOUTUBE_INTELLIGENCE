@@ -112,6 +112,7 @@ export class MockRadarProvider implements RadarProvider {
         channelId: v.channelId,
         channelTitle: v.channelTitle,
         subscribers: v.subscribers ?? 1,
+        totalVideos: intBetween(rng, 3, 60),
         channelPublishedAt: new Date(
           Date.now() - intBetween(rng, 60, 700) * 86_400_000
         ).toISOString(),

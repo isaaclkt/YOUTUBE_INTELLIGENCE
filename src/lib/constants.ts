@@ -100,6 +100,24 @@ export const RADAR_WINDOWS: ReadonlyArray<{
 
 export const RADAR_DEFAULT_WINDOW: RadarWindow = "7d";
 
+// ============ Verificador de Janela entre Idiomas ============
+
+/** Mercados verificados por padrão (demais via "verificar todos"). */
+export const WINDOW_DEFAULT_TARGETS: ReadonlyArray<{
+  language: LanguageCode;
+  country: CountryCode;
+}> = [
+  { language: "pt-BR", country: "BR" },
+  { language: "en", country: "US" },
+  { language: "es", country: "MX" },
+];
+
+/** Custo estimado por idioma verificado (1 search + videos + channels). */
+export const WINDOW_ESTIMATED_UNITS_PER_LANGUAGE = 105;
+
+/** Abaixo deste saldo diário, a página avisa o custo antes de rodar. */
+export const WINDOW_QUOTA_WARN_THRESHOLD = 2_000;
+
 /** Rótulos das categorias de nicho varridas. */
 export const CATEGORY_LABELS: Record<NicheCategory, string> = {
   historia: "História",

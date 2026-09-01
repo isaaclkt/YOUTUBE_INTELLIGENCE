@@ -15,6 +15,11 @@ export type {
 } from "./recommendation-engine";
 export type { ScoringEngine } from "./scoring-engine";
 export type {
+  WindowChecker,
+  WindowCheckInput,
+  WindowTarget,
+} from "./window-checker";
+export type {
   ComputedMetrics,
   DataSourceKind,
   NormalizedData,

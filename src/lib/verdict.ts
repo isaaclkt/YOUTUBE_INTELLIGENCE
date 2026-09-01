@@ -1,4 +1,4 @@
-import type { OpportunityPotential, Verdict } from "@/domain";
+import type { OpportunityPotential, Verdict, WindowVerdict } from "@/domain";
 
 /** Mapeamento de apresentação do veredito (label + cores do tema escuro). */
 export const VERDICT_META: Record<
@@ -37,6 +37,28 @@ export const VERDICT_META: Record<
     barClass: "bg-red-500",
     textClass: "text-red-400",
     glowClass: "shadow-red-500/20",
+  },
+};
+
+/** Apresentação dos vereditos do Verificador de Janela. */
+export const WINDOW_VERDICT_META: Record<
+  WindowVerdict,
+  { label: string; badgeClass: string; description: string }
+> = {
+  OPEN: {
+    label: "JANELA ABERTA",
+    badgeClass: "bg-emerald-500/15 text-emerald-400 ring-emerald-500/30",
+    description: "Pouco long-form recente ou outliers ativos sem domínio de canais fortes.",
+  },
+  CONTESTED: {
+    label: "DISPUTADO",
+    badgeClass: "bg-amber-500/15 text-amber-400 ring-amber-500/30",
+    description: "Mercado ativo — dá para entrar, mas o ângulo decide.",
+  },
+  SATURATED: {
+    label: "SATURADO",
+    badgeClass: "bg-red-500/15 text-red-400 ring-red-500/30",
+    description: "Canais fortes dominam e quase nada novo fura a bolha.",
   },
 };
 

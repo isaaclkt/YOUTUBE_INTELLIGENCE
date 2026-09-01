@@ -15,6 +15,7 @@ import {
   type RadarProvider,
   type RadarSweepInput,
 } from "../../contracts";
+import { isGrinderChannel } from "../channel-quality";
 import {
   createQuotaLedger,
   fetchChannels,
@@ -94,8 +95,8 @@ const RELEVANCE_LANGUAGE: Record<string, string> = {
 };
 
 function sweepCacheKey(input: RadarSweepInput): string {
-  // v4: classificador endurecido + replicableOutlierCount nos nichos.
-  return `radar:v4:${input.format}:${input.language}:${input.country}:${input.window}`;
+  // v5: totalVideos no canal + filtro grinder + score de ascensão.
+  return `radar:v5:${input.format}:${input.language}:${input.country}:${input.window}`;
 }
 
 function quotaDayKey(): string {
@@ -125,6 +126,8 @@ interface ChannelInfo {
   title: string;
   subscribers: number | null;
   avgViewsPerVideo: number;
+  /** Total de vídeos publicados pelo canal (base da eficiência). */
+  totalVideos: number;
   publishedAt: string | null;
 }
 
@@ -138,6 +141,7 @@ function toChannelInfo(channel: YouTubeChannel): ChannelInfo {
     title: channel.snippet?.title ?? "(canal desconhecido)",
     subscribers: Number.isFinite(subscribers as number) ? subscribers : null,
     avgViewsPerVideo: totalViews / videoCount,
+    totalVideos: videoCount,
     publishedAt: channel.snippet?.publishedAt ?? null,
   };
 }
@@ -349,6 +353,33 @@ export class RadarYouTubeProvider implements RadarProvider {
   }
 }
 
+/**
+ * ⚠️ CALIBRÁVEL — score de "acertou de primeira":
+ * razão views/inscritos (log) × fator de poucos vídeos publicados ×
+ * peso de recência do melhor sinal × boost por outlier na varredura.
+ * Canais "grinder" (muitos vídeos, quase nenhum inscrito) são
+ * EXCLUÍDOS por padrão — ver src/services/real/channel-quality.ts.
+ */
+function risingScore(input: {
+  viewsPerSubscriber: number;
+  totalVideos: number;
+  newestVideoAgeDays: number;
+  hasOutlier: boolean;
+}): number {
+  const ratioScore = Math.log10(input.viewsPerSubscriber + 1);
+  const fewVideosFactor = 1 / Math.log10(input.totalVideos + 3);
+  const recencyWeight =
+    input.newestVideoAgeDays <= 7
+      ? 1.5
+      : input.newestVideoAgeDays <= 14
+        ? 1.2
+        : input.newestVideoAgeDays <= 30
+          ? 1.0
+          : 0.6;
+  const outlierBoost = input.hasOutlier ? 1.5 : 1;
+  return ratioScore * fewVideosFactor * recencyWeight * outlierBoost;
+}
+
 function buildRisingChannels(
   videos: readonly RadarVideo[],
   channelById: ReadonlyMap<string, ChannelInfo>,
@@ -361,6 +392,8 @@ function buildRisingChannels(
       bestVph: number;
       videoCount: number;
       replicableCount: number;
+      hasOutlier: boolean;
+      newestVideoMs: number;
     }
   >();
   for (const video of videos) {
@@ -369,19 +402,28 @@ function buildRisingChannels(
       bestVph: 0,
       videoCount: 0,
       replicableCount: 0,
+      hasOutlier: false,
+      newestVideoMs: 0,
     };
     entry.recentViews += video.views;
     entry.bestVph = Math.max(entry.bestVph, video.vph);
     entry.videoCount += 1;
     if (video.isReplicable) entry.replicableCount += 1;
+    if (video.isOutlier) entry.hasOutlier = true;
+    entry.newestVideoMs = Math.max(
+      entry.newestVideoMs,
+      new Date(video.publishedAt).getTime()
+    );
     byChannel.set(video.channelId, entry);
   }
 
-  const rising: RadarChannel[] = [];
+  const rising: Array<RadarChannel & { score: number }> = [];
   for (const [channelId, agg] of byChannel) {
     const info = channelById.get(channelId);
     // Sem contagem de inscritos não há razão views/inscritos — pula.
     if (!info || info.subscribers === null || info.subscribers <= 0) continue;
+    // Grinder sem tração: o formato dele já provou que não funciona.
+    if (isGrinderChannel(info.totalVideos, info.subscribers)) continue;
 
     const ageDays = info.publishedAt
       ? (nowMs - new Date(info.publishedAt).getTime()) / 86_400_000
@@ -391,29 +433,42 @@ function buildRisingChannels(
     if (!isSmall && !isYoung) continue;
     if (agg.bestVph < RISING_MIN_VPH) continue;
 
+    const viewsPerSubscriber =
+      Math.round((agg.recentViews / info.subscribers) * 10) / 10;
+    const newestVideoAgeDays = agg.newestVideoMs
+      ? (nowMs - agg.newestVideoMs) / 86_400_000
+      : 90;
+
     rising.push({
       channelId,
       channelTitle: info.title,
       subscribers: info.subscribers,
+      totalVideos: info.totalVideos,
       channelPublishedAt: info.publishedAt,
       recentViews: agg.recentViews,
       bestVph: agg.bestVph,
       videoCount: agg.videoCount,
-      viewsPerSubscriber:
-        Math.round((agg.recentViews / info.subscribers) * 10) / 10,
+      viewsPerSubscriber,
       // Canal replicável = maioria dos vídeos amostrados é dark-friendly.
       isReplicable: agg.replicableCount * 2 >= agg.videoCount,
+      score: risingScore({
+        viewsPerSubscriber,
+        totalVideos: info.totalVideos,
+        newestVideoAgeDays,
+        hasOutlier: agg.hasOutlier,
+      }),
     });
   }
 
-  // Replicáveis primeiro (nossa operação), depois pela razão.
+  // Replicáveis primeiro (nossa operação), depois pelo score de
+  // "acertou de primeira" (poucos vídeos + outlier recente + razão alta).
   return rising
     .sort(
       (a, b) =>
-        Number(b.isReplicable) - Number(a.isReplicable) ||
-        b.viewsPerSubscriber - a.viewsPerSubscriber
+        Number(b.isReplicable) - Number(a.isReplicable) || b.score - a.score
     )
-    .slice(0, RISING_LIMIT);
+    .slice(0, RISING_LIMIT)
+    .map(({ score: _score, ...channel }) => channel);
 }
 
 function buildHeatingNiches(videos: readonly RadarVideo[]): RadarNiche[] {

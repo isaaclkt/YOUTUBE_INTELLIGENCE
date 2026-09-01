@@ -37,12 +37,18 @@ export default async function AnalysisPage(props: PageProps<"/analysis/[id]">) {
 
   return (
     <main className="mx-auto w-full max-w-4xl px-4 py-8 sm:py-12">
-      <nav className="mb-6">
+      <nav className="mb-6 flex items-center justify-between">
         <Link
           href="/"
           className="text-sm text-zinc-400 transition hover:text-zinc-200"
         >
           ← Nova análise
+        </Link>
+        <Link
+          href={`/window?q=${encodeURIComponent(topic.query)}&from=${topic.language}`}
+          className="rounded-full border border-zinc-800 bg-zinc-900/60 px-3 py-1.5 text-xs font-medium text-zinc-300 transition hover:border-zinc-600 hover:text-white"
+        >
+          🌍 Verificar janela
         </Link>
       </nav>
 

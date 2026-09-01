@@ -16,6 +16,12 @@ export type {
   RadarWindow,
 } from "./radar";
 export type { SampleVideo } from "./sample-video";
+export type {
+  LanguageWindowCheck,
+  WindowInterpretation,
+  WindowReport,
+  WindowVerdict,
+} from "./window";
 export type { Market } from "./market";
 export type { Opportunity, OpportunityPotential } from "./opportunity";
 export type { Recommendation } from "./recommendation";

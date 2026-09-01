@@ -6,6 +6,7 @@ import { MockOpportunityEngine } from "./mock-opportunity-engine";
 import { MockRadarProvider } from "./mock-radar-provider";
 import { MockRecommendationEngine } from "./mock-recommendation-engine";
 import { MockScoringEngine } from "./mock-scoring-engine";
+import { MockWindowChecker } from "./mock-window-checker";
 
 /** Monta o contêiner completo de serviços MOCK (fase 1). */
 export function createMockServices(): ServiceContainer {
@@ -17,5 +18,6 @@ export function createMockServices(): ServiceContainer {
     aiInterpreter: new MockAIInterpreter(),
     recommendationEngine: new MockRecommendationEngine(),
     radarProvider: new MockRadarProvider(),
+    windowChecker: new MockWindowChecker(),
   };
 }

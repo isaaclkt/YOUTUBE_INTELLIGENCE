@@ -5,6 +5,7 @@ import type { OpportunityEngine } from "./opportunity-engine";
 import type { RadarProvider } from "./radar-provider";
 import type { RecommendationEngine } from "./recommendation-engine";
 import type { ScoringEngine } from "./scoring-engine";
+import type { WindowChecker } from "./window-checker";
 
 /**
  * Conjunto completo de serviços do motor.
@@ -19,4 +20,5 @@ export interface ServiceContainer {
   aiInterpreter: AIInterpreter;
   recommendationEngine: RecommendationEngine;
   radarProvider: RadarProvider;
+  windowChecker: WindowChecker;
 }
