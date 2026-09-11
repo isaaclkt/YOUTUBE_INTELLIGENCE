@@ -6,7 +6,8 @@ import { TrendingVideosCard } from "@/components/radar/trending-videos-card";
 import { APP_DISCLAIMER } from "@/lib/constants";
 import { formatDateTime } from "@/lib/format";
 import { parseRadarParams } from "@/lib/radar-params";
-import { rankNiches } from "@/lib/rpm";
+import { listRadarCategories } from "@/lib/repository";
+import { buildCategoryMaps, rankNiches } from "@/lib/rpm";
 import { runRadarSweep } from "@/services/radar";
 
 export const metadata: Metadata = { title: "Shorts Radar" };
@@ -18,7 +19,11 @@ export default async function ShortsRadarPage(
 ) {
   const searchParams = await props.searchParams;
   const params = parseRadarParams(searchParams);
-  const outcome = await runRadarSweep({ ...params, format: "shorts" });
+  const [outcome, allCategories] = await Promise.all([
+    runRadarSweep({ ...params, format: "shorts" }),
+    listRadarCategories(),
+  ]);
+  const categoryMaps = buildCategoryMaps(allCategories);
 
   return (
     <main className="mx-auto w-full max-w-4xl px-4 py-8 sm:py-12">
@@ -64,13 +69,16 @@ export default async function ShortsRadarPage(
             )}
             title="Shorts estourando"
             windowFromLanguage={params.language}
+            categoryLabels={categoryMaps.labels}
           />
 
           <HeatingNichesCard
             niches={rankNiches(outcome.sweep.heatingNiches, {
               strictReplicable: !params.showAll,
+              tiers: categoryMaps.tiers,
             })}
             strict={!params.showAll}
+            categoryMeta={categoryMaps.meta}
           />
 
           <p className="text-center text-xs text-zinc-600">

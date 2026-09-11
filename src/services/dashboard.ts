@@ -70,7 +70,7 @@ function pairMeta(language: string, country: string) {
 export async function getDashboardSummary(): Promise<DashboardSummary> {
   const [sweepRows, nicheRows, ascRows, windowRows, quota, counts, recent] =
     await Promise.all([
-      listApiCacheByPrefix("radar:v8:longform:"),
+      listApiCacheByPrefix("radar:v9:longform:"),
       listApiCacheByPrefix("nichos:v1:"),
       listApiCacheByPrefix("canais:v1:"),
       listApiCacheByPrefix("window:v1:"),

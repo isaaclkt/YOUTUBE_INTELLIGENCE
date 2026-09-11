@@ -1,9 +1,11 @@
 import type { Metadata } from "next";
 import Link from "next/link";
 import { RadarFilters } from "@/components/radar/radar-filters";
-import { APP_DISCLAIMER, CATEGORY_LABELS } from "@/lib/constants";
+import { APP_DISCLAIMER } from "@/lib/constants";
 import { formatCompact, formatDateTime, formatVideoAge } from "@/lib/format";
 import { parseRadarParams } from "@/lib/radar-params";
+import { listRadarCategories } from "@/lib/repository";
+import { buildCategoryMaps } from "@/lib/rpm";
 import { runAscendingChannels } from "@/services/ascending";
 import { ASC_MIN_VIEWS_HIT } from "@/services/ascending";
 
@@ -26,7 +28,11 @@ export default async function CanaisPage(props: PageProps<"/radar/canais">) {
   const size =
     SIZE_FILTERS.find((s) => s.key === rawSize) ?? SIZE_FILTERS[0];
 
-  const outcome = await runAscendingChannels(params);
+  const [outcome, allCategories] = await Promise.all([
+    runAscendingChannels(params),
+    listRadarCategories(),
+  ]);
+  const categoryLabels = buildCategoryMaps(allCategories).labels;
 
   return (
     <main className="mx-auto w-full max-w-4xl px-4 py-8 sm:py-12">
@@ -127,7 +133,7 @@ export default async function CanaisPage(props: PageProps<"/radar/canais">) {
                       · {formatCompact(channel.avgRecentViews)} views médias
                       recentes · {channel.uploadsPerWeek} uploads/semana ·{" "}
                       <span className="text-zinc-600">
-                        {CATEGORY_LABELS[channel.category]}
+                        {categoryLabels[channel.category] ?? channel.category}
                       </span>
                       {channel.lastUploadAt
                         ? ` · último vídeo há ${formatVideoAge(channel.lastUploadAt)}`

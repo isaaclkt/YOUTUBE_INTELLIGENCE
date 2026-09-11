@@ -7,7 +7,8 @@ import { TrendingVideosCard } from "@/components/radar/trending-videos-card";
 import { APP_DISCLAIMER } from "@/lib/constants";
 import { formatDateTime } from "@/lib/format";
 import { parseRadarParams } from "@/lib/radar-params";
-import { rankNiches } from "@/lib/rpm";
+import { listRadarCategories } from "@/lib/repository";
+import { buildCategoryMaps, rankNiches } from "@/lib/rpm";
 import { runRadarSweep } from "@/services/radar";
 
 export const metadata: Metadata = { title: "Radar" };
@@ -18,7 +19,11 @@ export const dynamic = "force-dynamic";
 export default async function RadarPage(props: PageProps<"/radar">) {
   const searchParams = await props.searchParams;
   const params = parseRadarParams(searchParams);
-  const outcome = await runRadarSweep({ ...params, format: "longform" });
+  const [outcome, allCategories] = await Promise.all([
+    runRadarSweep({ ...params, format: "longform" }),
+    listRadarCategories(),
+  ]);
+  const categoryMaps = buildCategoryMaps(allCategories);
 
   return (
     <main className="mx-auto w-full max-w-4xl px-4 py-8 sm:py-12">
@@ -68,6 +73,7 @@ export default async function RadarPage(props: PageProps<"/radar">) {
             );
             const niches = rankNiches(outcome.sweep.heatingNiches, {
               strictReplicable: !showAll,
+              tiers: categoryMaps.tiers,
             });
             const hiddenCount =
               outcome.sweep.trendingVideos.length - trending.length;
@@ -83,10 +89,15 @@ export default async function RadarPage(props: PageProps<"/radar">) {
                 <TrendingVideosCard
                   videos={trending}
                   windowFromLanguage={params.language}
+                  categoryLabels={categoryMaps.labels}
                 />
                 <div className="grid grid-cols-1 gap-6 lg:grid-cols-2">
                   <RisingChannelsCard channels={rising} />
-                  <HeatingNichesCard niches={niches} strict={!showAll} />
+                  <HeatingNichesCard
+                    niches={niches}
+                    strict={!showAll}
+                    categoryMeta={categoryMaps.meta}
+                  />
                 </div>
               </>
             );

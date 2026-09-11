@@ -5,7 +5,8 @@ import type {
   RadarSweep,
   RadarVideo,
 } from "@/domain";
-import { CATEGORY_LABELS, RADAR_WINDOWS } from "@/lib/constants";
+import { RADAR_WINDOWS } from "@/lib/constants";
+import { listActiveRadarCategories } from "@/lib/repository";
 import type { RadarProvider, RadarSweepInput } from "../contracts";
 import { between, createRng, intBetween, type Rng } from "./seeded-random";
 import { simulateLatency } from "./simulate";
@@ -16,7 +17,7 @@ import { simulateLatency } from "./simulate";
  * — a UI exibe o aviso de dados demonstrativos quando source = "mock".
  */
 
-const TITLE_TEMPLATES: Record<NicheCategory, readonly string[]> = {
+const TITLE_TEMPLATES: Record<string, readonly string[]> = {
   historia: [
     "A batalha que mudou tudo (e ninguém estudou)",
     "O império que sumiu em uma geração",
@@ -65,10 +66,15 @@ const CHANNEL_WORDS = [
 function mockVideo(
   rng: Rng,
   category: NicheCategory,
+  categoryName: string,
   index: number,
   windowHours: number
 ): RadarVideo {
-  const templates = TITLE_TEMPLATES[category];
+  // Categorias criadas na tela ⚙️ não têm template — fallback genérico.
+  const templates = TITLE_TEMPLATES[category] ?? [
+    `O tema de ${categoryName} que está crescendo agora`,
+    `Top 10 de ${categoryName} que ninguém esperava`,
+  ];
   const title = `[demo] ${templates[index % templates.length]}`;
   const ageHours = Math.max(2, between(rng, 0.05, 1) * windowHours);
   const views = Math.round(10 ** between(rng, 3.2, 5.8));
@@ -97,11 +103,12 @@ export class MockRadarProvider implements RadarProvider {
     const windowHours =
       RADAR_WINDOWS.find((w) => w.key === input.window)?.hours ?? 168;
 
-    const categories = Object.keys(CATEGORY_LABELS) as NicheCategory[];
-    const videos: RadarVideo[] = categories.flatMap((category) => {
+    // Mesmo conjunto gerenciável da tela ⚙️ Categorias (dados demo).
+    const activeCategories = await listActiveRadarCategories();
+    const videos: RadarVideo[] = activeCategories.flatMap((categoryConfig) => {
       const count = intBetween(rng, 4, 7);
       return Array.from({ length: count }, (_, i) =>
-        mockVideo(rng, category, i, windowHours)
+        mockVideo(rng, categoryConfig.slug, categoryConfig.name, i, windowHours)
       );
     });
 
@@ -130,7 +137,8 @@ export class MockRadarProvider implements RadarProvider {
       )
       .slice(0, 6);
 
-    const heatingNiches: RadarNiche[] = categories
+    const heatingNiches: RadarNiche[] = activeCategories
+      .map((c) => c.slug)
       .map((category) => {
         const inCategory = videos.filter((v) => v.category === category);
         const outliers = inCategory

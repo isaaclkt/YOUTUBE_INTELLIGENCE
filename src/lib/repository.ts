@@ -62,6 +62,107 @@ export async function getApiCache(key: string): Promise<string | null> {
   return row.payload;
 }
 
+// ============ Categorias do Radar (tela ⚙️) ============
+
+import type { LanguageCode as Lang, RadarCategoryConfig } from "@/domain";
+import { DEFAULT_RADAR_CATEGORIES } from "./default-radar-categories";
+
+function toCategoryConfig(row: {
+  id: string;
+  slug: string;
+  name: string;
+  rpmTier: string;
+  active: boolean;
+  seedsJson: string;
+}): RadarCategoryConfig {
+  let seeds: Partial<Record<Lang, string>> = {};
+  try {
+    seeds = JSON.parse(row.seedsJson) as Partial<Record<Lang, string>>;
+  } catch {
+    seeds = {};
+  }
+  return {
+    id: row.id,
+    slug: row.slug,
+    name: row.name,
+    rpmTier:
+      row.rpmTier === "high" || row.rpmTier === "low" ? row.rpmTier : "medium",
+    active: row.active,
+    seeds,
+  };
+}
+
+/** Semeia os padrões na primeira leitura (tabela vazia). */
+async function ensureDefaultRadarCategories(): Promise<void> {
+  const count = await prisma.radarCategory.count();
+  if (count > 0) return;
+  await prisma.radarCategory.createMany({
+    data: DEFAULT_RADAR_CATEGORIES.map((c) => ({
+      slug: c.slug,
+      name: c.name,
+      rpmTier: c.rpmTier,
+      active: true,
+      seedsJson: JSON.stringify(c.seeds),
+    })),
+  });
+}
+
+export async function listRadarCategories(): Promise<RadarCategoryConfig[]> {
+  await ensureDefaultRadarCategories();
+  const rows = await prisma.radarCategory.findMany({
+    orderBy: [{ active: "desc" }, { name: "asc" }],
+  });
+  return rows.map(toCategoryConfig);
+}
+
+export async function listActiveRadarCategories(): Promise<
+  RadarCategoryConfig[]
+> {
+  return (await listRadarCategories()).filter((c) => c.active);
+}
+
+export async function createRadarCategory(input: {
+  slug: string;
+  name: string;
+  rpmTier: string;
+  seeds: Partial<Record<Lang, string>>;
+}): Promise<void> {
+  await prisma.radarCategory.create({
+    data: {
+      slug: input.slug,
+      name: input.name,
+      rpmTier: input.rpmTier,
+      active: true,
+      seedsJson: JSON.stringify(input.seeds),
+    },
+  });
+}
+
+export async function updateRadarCategory(
+  id: string,
+  input: {
+    name: string;
+    rpmTier: string;
+    seeds: Partial<Record<Lang, string>>;
+  }
+): Promise<void> {
+  await prisma.radarCategory.update({
+    where: { id },
+    data: {
+      name: input.name,
+      rpmTier: input.rpmTier,
+      seedsJson: JSON.stringify(input.seeds),
+    },
+  });
+}
+
+export async function setRadarCategoryActive(
+  id: string,
+  active: boolean
+): Promise<void> {
+  await prisma.radarCategory.update({ where: { id }, data: { active } });
+}
+
 /** Entradas de cache não-expiradas por prefixo (leitura de painel). */
 export async function listApiCacheByPrefix(
   prefix: string

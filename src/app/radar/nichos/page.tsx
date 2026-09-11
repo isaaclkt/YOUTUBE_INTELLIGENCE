@@ -1,12 +1,11 @@
 import type { Metadata } from "next";
 import Link from "next/link";
 import { RadarFilters } from "@/components/radar/radar-filters";
-import {
-  APP_DISCLAIMER,
-  CATEGORY_LABELS,
-} from "@/lib/constants";
+import { APP_DISCLAIMER } from "@/lib/constants";
 import { formatCompact, formatDateTime } from "@/lib/format";
 import { parseRadarParams } from "@/lib/radar-params";
+import { listRadarCategories } from "@/lib/repository";
+import { buildCategoryMaps } from "@/lib/rpm";
 import { runNicheDetection } from "@/services/niches";
 
 export const metadata: Metadata = { title: "Nichos Nascendo" };
@@ -22,7 +21,11 @@ const TREND_META = {
 export default async function NichosPage(props: PageProps<"/radar/nichos">) {
   const searchParams = await props.searchParams;
   const params = parseRadarParams(searchParams);
-  const outcome = await runNicheDetection(params);
+  const [outcome, allCategories] = await Promise.all([
+    runNicheDetection(params),
+    listRadarCategories(),
+  ]);
+  const categoryLabels = buildCategoryMaps(allCategories).labels;
 
   return (
     <main className="mx-auto w-full max-w-4xl px-4 py-8 sm:py-12">
@@ -92,7 +95,8 @@ export default async function NichosPage(props: PageProps<"/radar/nichos">) {
                   <p className="mt-1 text-xs text-zinc-500">
                     subnicho de{" "}
                     <span className="text-zinc-400">
-                      {CATEGORY_LABELS[niche.parentCategory]}
+                      {categoryLabels[niche.parentCategory] ??
+                        niche.parentCategory}
                     </span>{" "}
                     · termo: “{niche.term}”
                   </p>

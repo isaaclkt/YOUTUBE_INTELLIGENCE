@@ -1,8 +1,12 @@
-import type { RadarNiche } from "@/domain";
-import { CATEGORY_LABELS } from "@/lib/constants";
-import { CATEGORY_RPM_TIER, RPM_TIER_LABELS } from "@/lib/rpm";
+import type { RadarNiche, RpmTier } from "@/domain";
+import { RPM_TIER_LABELS } from "@/lib/rpm";
 import { Card } from "../card";
 import { ScoreBar } from "../score-bar";
+
+/** Nome e tier de cada categoria (slug → meta), vindos do SQLite. */
+export type CategoryMetaMap = Readonly<
+  Record<string, { name: string; tier: RpmTier } | undefined>
+>;
 
 const TIER_BADGE_CLASSES = {
   high: "bg-emerald-500/15 text-emerald-400 ring-emerald-500/30",
@@ -17,9 +21,11 @@ const TIER_BADGE_CLASSES = {
 export function HeatingNichesCard({
   niches,
   strict = false,
+  categoryMeta = {},
 }: {
   niches: RadarNiche[];
   strict?: boolean;
+  categoryMeta?: CategoryMetaMap;
 }) {
   if (niches.length === 0) return null;
   const count = (n: RadarNiche) =>
@@ -35,12 +41,13 @@ export function HeatingNichesCard({
       </p>
       <ol className="space-y-4">
         {niches.map((niche, index) => {
-          const tier = CATEGORY_RPM_TIER[niche.category];
+          const meta = categoryMeta[niche.category];
+          const tier = meta?.tier ?? "medium";
           return (
             <li key={niche.category}>
               <div className="flex items-baseline justify-between gap-2">
                 <p className="flex items-center gap-2 text-sm font-semibold text-zinc-200">
-                  {index + 1}º {CATEGORY_LABELS[niche.category]}
+                  {index + 1}º {meta?.name ?? niche.category}
                   <span
                     className={`rounded-full px-1.5 py-0.5 text-[10px] font-medium ring-1 ${TIER_BADGE_CLASSES[tier]}`}
                   >

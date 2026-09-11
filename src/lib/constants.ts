@@ -1,9 +1,4 @@
-import type {
-  CountryCode,
-  LanguageCode,
-  NicheCategory,
-  RadarWindow,
-} from "@/domain";
+import type { CountryCode, LanguageCode, RadarWindow } from "@/domain";
 
 export const APP_NAME = "YouTube Intelligence AI";
 export const APP_TAGLINE = "Vale a pena criar conteúdo sobre esse tema?";
@@ -118,14 +113,8 @@ export const WINDOW_ESTIMATED_UNITS_PER_LANGUAGE = 105;
 /** Abaixo deste saldo diário, a página avisa o custo antes de rodar. */
 export const WINDOW_QUOTA_WARN_THRESHOLD = 2_000;
 
-/** Rótulos das categorias de nicho varridas. */
-export const CATEGORY_LABELS: Record<NicheCategory, string> = {
-  historia: "História",
-  financas: "Finanças",
-  saude: "Saúde & fitness",
-  curiosidades: "Curiosidades & mistérios",
-  automotivo: "Automotivo",
-  animais: "Animais",
-  comida: "Comida & receitas",
-  religiao: "Religião",
-};
+// Rótulos e tiers das categorias agora vivem no SQLite (tela ⚙️
+// Categorias) — ver src/lib/repository.ts e default-radar-categories.ts.
+
+/** Custo de busca por semente do Radar (search.list da API). */
+export const RADAR_UNITS_PER_SEED_SEARCH = 100;

@@ -9,16 +9,12 @@ export type RadarWindow = "24h" | "7d" | "30d";
  */
 export type RadarFormat = "longform" | "shorts";
 
-/** Categorias de nicho varridas pelo Radar (uma consulta-semente cada). */
-export type NicheCategory =
-  | "historia"
-  | "financas"
-  | "saude"
-  | "curiosidades"
-  | "automotivo"
-  | "animais"
-  | "comida"
-  | "religiao";
+/**
+ * Slug de uma categoria varrida pelo Radar. Desde a tela ⚙️ Categorias
+ * o conjunto é dinâmico (persistido no SQLite) — este tipo é um slug
+ * livre; nome e tier de RPM vêm da RadarCategoryConfig.
+ */
+export type NicheCategory = string;
 
 /** Um vídeo encontrado na varredura. */
 export interface RadarVideo {

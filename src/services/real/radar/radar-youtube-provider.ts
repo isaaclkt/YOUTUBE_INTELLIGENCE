@@ -25,7 +25,9 @@ import {
 } from "../data-collector/youtube-api";
 import { classifyReplicable } from "./format-classifier";
 import { matchesLanguage } from "./language-filter";
-import { RADAR_SEED_QUERIES } from "./seed-queries";
+import { createHash } from "node:crypto";
+import type { RadarCategoryConfig } from "@/domain";
+import { listActiveRadarCategories } from "@/lib/repository";
 import {
   isKidsContent,
   matchesFormat,
@@ -51,12 +53,6 @@ import {
 
 /** CALIBRÁVEL: teto diário de unidades gastas pelo Radar (as 2 abas). */
 export const RADAR_DAILY_QUOTA_BUDGET = 8_000;
-
-/** Estimativas conservadoras por formato (pré-checagem do teto). */
-const ESTIMATED_UNITS: Record<RadarFormat, number> = {
-  longform: 1_650,
-  shorts: 850,
-};
 
 /** Buscas por categoria, por formato (videoDuration da API). */
 const FORMAT_DURATIONS: Record<
@@ -94,9 +90,23 @@ const RELEVANCE_LANGUAGE: Record<string, string> = {
   de: "de",
 };
 
-function sweepCacheKey(input: RadarSweepInput): string {
-  // v8: pool de sinal (outliers + topo replicável) no payload.
-  return `radar:v8:${input.format}:${input.language}:${input.country}:${input.window}`;
+function sweepCacheKey(
+  input: RadarSweepInput,
+  categories: readonly RadarCategoryConfig[]
+): string {
+  // v9: chave inclui hash do conjunto slug+semente do idioma —
+  // editar/ativar categorias na tela ⚙️ invalida naturalmente.
+  const catHash = createHash("sha256")
+    .update(
+      JSON.stringify(
+        [...categories]
+          .map((c) => [c.slug, c.seeds[input.language] ?? ""])
+          .sort()
+      )
+    )
+    .digest("hex")
+    .slice(0, 10);
+  return `radar:v9:${input.format}:${input.language}:${input.country}:${input.window}:${catHash}`;
 }
 
 /** Cap do payload de outliers persistido na varredura. */
@@ -158,21 +168,45 @@ export class RadarYouTubeProvider implements RadarProvider {
       return this.fallback.sweep(input);
     }
 
-    // 1. Cache de varredura (12h): olhar de novo custa 0 unidades.
-    const cacheKey = sweepCacheKey(input);
+    // Categorias ATIVAS com semente para o idioma (tela ⚙️ Categorias).
+    const active = await listActiveRadarCategories();
+    const swept = active.filter((c) => (c.seeds[input.language] ?? "").trim());
+    if (swept.length === 0) {
+      // Nenhuma categoria ativa com semente para o idioma: varredura
+      // vazia honesta (a tela ⚙️ Categorias orienta a ligar algo).
+      return {
+        language: input.language,
+        country: input.country,
+        window: input.window,
+        format: input.format,
+        sweptAt: new Date().toISOString(),
+        source: "real",
+        quotaUnits: 0,
+        trendingVideos: [],
+        risingChannels: [],
+        heatingNiches: [],
+        outlierVideos: [],
+      };
+    }
+
+    // 1. Cache de varredura (12h) — a chave inclui o conjunto de
+    //    sementes: editar/ativar categorias invalida naturalmente.
+    const cacheKey = sweepCacheKey(input, swept);
     const cached = await getApiCache(cacheKey);
     if (cached !== null) {
       return { ...(JSON.parse(cached) as RadarSweep), quotaUnits: 0 };
     }
 
-    // 2. Teto diário: nunca deixar o Radar consumir o dia inteiro.
+    // 2. Teto diário: estimativa proporcional às categorias ativas.
+    const durations = FORMAT_DURATIONS[input.format];
+    const estimated = swept.length * durations.length * 100 + 50;
     const spentToday = await getRadarQuotaSpentToday();
-    if (spentToday + ESTIMATED_UNITS[input.format] > RADAR_DAILY_QUOTA_BUDGET) {
+    if (spentToday + estimated > RADAR_DAILY_QUOTA_BUDGET) {
       throw new RadarBudgetExceededError(spentToday, RADAR_DAILY_QUOTA_BUDGET);
     }
 
     try {
-      const sweep = await this.runSweep(input, apiKey);
+      const sweep = await this.runSweep(input, swept, apiKey);
       await putApiCache(cacheKey, JSON.stringify(sweep), SWEEP_CACHE_TTL_MS);
       await addRadarQuotaSpent(sweep.quotaUnits);
       return sweep;
@@ -188,24 +222,23 @@ export class RadarYouTubeProvider implements RadarProvider {
 
   private async runSweep(
     input: RadarSweepInput,
+    sweptCategories: readonly RadarCategoryConfig[],
     apiKey: string
   ): Promise<RadarSweep> {
     const ledger = createQuotaLedger();
-    const seeds = RADAR_SEED_QUERIES[input.language];
     const windowHours =
       RADAR_WINDOWS.find((w) => w.key === input.window)?.hours ?? 168;
     const publishedAfter = windowStartIso(windowHours);
     const relevanceLanguage = RELEVANCE_LANGUAGE[input.language] ?? "en";
     const durations = FORMAT_DURATIONS[input.format];
 
-    // categorias × durações do formato, tudo em paralelo.
-    const categories = Object.keys(seeds) as NicheCategory[];
+    // categorias ativas × durações do formato, tudo em paralelo.
     const searches = await Promise.all(
-      categories.flatMap((category) =>
+      sweptCategories.flatMap((categoryConfig) =>
         durations.map((videoDuration) =>
           searchVideos(
             {
-              query: seeds[category],
+              query: categoryConfig.seeds[input.language] ?? "",
               relevanceLanguage,
               regionCode: input.country,
               order: "viewCount",
@@ -214,7 +247,7 @@ export class RadarYouTubeProvider implements RadarProvider {
             },
             apiKey,
             ledger
-          ).then((response) => ({ category, response }))
+          ).then((response) => ({ category: categoryConfig.slug, response }))
         )
       )
     );

@@ -17,6 +17,7 @@ export type {
 } from "./radar";
 export type { SampleVideo } from "./sample-video";
 export type { AscendingChannel, AscendingReport } from "./ascending";
+export type { RadarCategoryConfig, RpmTier } from "./radar-category";
 export type { EmergingNiche, NicheReport, NicheTrend } from "./niches";
 export type {
   LanguageWindowCheck,

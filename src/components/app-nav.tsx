@@ -42,6 +42,12 @@ const NAV_ITEMS = [
     label: "Histórico",
     match: (p: string) => p.startsWith("/historico"),
   },
+  {
+    href: "/categorias",
+    icon: "⚙️",
+    label: "Categorias",
+    match: (p: string) => p.startsWith("/categorias"),
+  },
 ] as const;
 
 function itemClass(active: boolean): string {

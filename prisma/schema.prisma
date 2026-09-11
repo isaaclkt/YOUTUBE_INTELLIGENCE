@@ -30,6 +30,19 @@ model ApiCache {
   @@index([expiresAt])
 }
 
+// Categorias/sementes do Radar, gerenciáveis pela tela ⚙️ Categorias.
+// As varreduras usam apenas as ativas; sementes por idioma em JSON.
+model RadarCategory {
+  id        String   @id @default(cuid())
+  slug      String   @unique
+  name      String
+  rpmTier   String // "high" | "medium" | "low"
+  active    Boolean  @default(true)
+  seedsJson String // Record<LanguageCode, string> — termos separados por "|"
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
+
 // Uma análise executada pelo motor. Os campos denormalizados
 // (verdict, opportunityScore) existem para listar o histórico
 // sem precisar desserializar `resultJson`.

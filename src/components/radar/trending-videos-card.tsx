@@ -1,6 +1,5 @@
 import Link from "next/link";
 import type { LanguageCode, RadarVideo } from "@/domain";
-import { CATEGORY_LABELS } from "@/lib/constants";
 import { formatCompact, formatVideoAge } from "@/lib/format";
 import { Card } from "../card";
 
@@ -9,11 +8,14 @@ export function TrendingVideosCard({
   videos,
   title = "Vídeos estourando",
   windowFromLanguage,
+  categoryLabels = {},
 }: {
   videos: RadarVideo[];
   title?: string;
   /** Habilita o link "🌍 janela" nos itens (idioma de origem). */
   windowFromLanguage?: LanguageCode;
+  /** slug → nome da categoria (vindo do SQLite). */
+  categoryLabels?: Readonly<Record<string, string | undefined>>;
 }) {
   if (videos.length === 0) return null;
   return (
@@ -50,7 +52,7 @@ export function TrendingVideosCard({
                 · {formatCompact(video.views)} views ·{" "}
                 {formatVideoAge(video.publishedAt)} ·{" "}
                 <span className="text-zinc-600">
-                  {CATEGORY_LABELS[video.category]}
+                  {categoryLabels[video.category] ?? video.category}
                 </span>
                 {windowFromLanguage ? (
                   <>
