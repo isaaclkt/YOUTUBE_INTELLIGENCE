@@ -2,14 +2,14 @@
  * ============================================================
  * MOTOR DE DECISÃO V2 — PARÂMETROS
  *
- * Todos os valores abaixo são LIMIARES OPERACIONAIS declarados,
- * não constantes empíricas. Eles existem para que o veredito seja
- * uma afirmação sobre uma régua que o operador escolheu, e não
- * sobre uma escala inventada pelo código.
+ * Limiares OPERACIONAIS declarados, não constantes empíricas.
+ * Ajustáveis por variável de ambiente para calibração futura;
+ * valor inválido ou ausente cai no padrão.
  *
- * Ajustáveis por variável de ambiente para permitir calibração
- * futura contra o histórico real da operação. Valor inválido ou
- * ausente cai no padrão.
+ * A métrica decisiva é a CONCENTRAÇÃO (C). O alcance do entrante
+ * é contextual e não participa do score nem do veredito — a
+ * validação com dados reais mostrou que ele mede sobretudo o porte
+ * dos canais devolvidos pela busca, não a oportunidade do tema.
  * ============================================================
  */
 
@@ -20,93 +20,88 @@ function positiveEnv(name: string, fallback: number): number {
   return Number.isFinite(parsed) && parsed > 0 ? parsed : fallback;
 }
 
-/** Tier de coleta: "reduced" não mede pressão de oferta (poupa ~200u). */
-export type DecisionTier = "reduced" | "full";
-
-export function decisionTier(): DecisionTier {
-  return process.env.DECISION_TIER === "full" ? "full" : "reduced";
-}
-
 /**
- * Piso e alvo de views do ENTRANTE — o par que define o veredito.
- * Piso: abaixo disto o vídeo não funcionou.
- * Alvo: com isto o operador ficaria satisfeito.
+ * Piso de views que define "desempenho relevante" para o número
+ * CONTEXTUAL de M1 ("X de N vídeos ultrapassaram este piso").
+ * Não é limiar de veredito.
  */
 export function viewsFloor(): number {
   return positiveEnv("DECISION_VIEWS_FLOOR", 5_000);
 }
-export function viewsTarget(): number {
-  return positiveEnv("DECISION_VIEWS_TARGET", 100_000);
-}
 
-/** Teto de inscritos para o canal contar como "entrante". */
+/** Teto de inscritos para o canal contar como "entrante" no recorte de M1. */
 export function newcomerMaxSubscribers(): number {
   return positiveEnv("DECISION_NEWCOMER_MAX_SUBS", 50_000);
 }
 
-/** Âncoras da pressão de oferta, em vídeos por 30 dias. */
-export function supplyLow(): number {
-  return positiveEnv("DECISION_SUPPLY_LOW", 4);
-}
-export function supplyHigh(): number {
-  return positiveEnv("DECISION_SUPPLY_HIGH", 60);
-}
-
 /**
- * Janela de amostragem, em dias.
- * Piso de 7 dias: antes disso o vídeo ainda acumula views no pico
- * inicial e a contagem não é comparável com a de um vídeo maduro.
+ * Janela de amostragem, em dias. Piso de 7 dias: antes disso o vídeo
+ * ainda acumula views no pico inicial e não é comparável a um maduro.
  */
 export const WINDOW_MIN_AGE_DAYS = 7;
 export const WINDOW_MAX_AGE_DAYS = 90;
 
-/** Pesos por tier. Somam 1 em ambos. */
-export const WEIGHTS = {
-  reduced: { reach: 0.6, concentration: 0.4 },
-  full: { reach: 0.5, concentration: 0.3, supply: 0.2 },
-} as const;
-
-/** Limiares do veredito, na unidade de cada métrica. */
+/** Limiares do veredito, na escala da concentração. */
 export const VERDICT_LIMITS = {
-  /** Concentração a partir da qual o tema é considerado fechado. */
+  /** A partir daqui os três maiores canais capturam a audiência. */
   concentrationSaturated: 65,
-  /** Concentração máxima admitida para um SIM. */
+  /** Abaixo daqui a audiência está pulverizada o bastante para SIM. */
   concentrationForYes: 50,
-  /** Pressão de oferta máxima admitida para um SIM (só no tier full). */
-  supplyForYes: 80,
 } as const;
 
 /** Amostra mínima para que o motor aceite emitir qualquer veredito. */
 export const MIN_SAMPLE = {
   /** Vídeos long-form na janela, após todos os filtros. */
   videos: 20,
-  /** Vídeos de canais entrantes — é o n por trás da mediana de M1. */
-  newcomerVideos: 5,
   /** Canais distintos — abaixo disto a concentração não é interpretável. */
   distinctChannels: 4,
 } as const;
 
-/** Critérios objetivos de qualidade da evidência. */
+/**
+ * Observações mínimas para que o número CONTEXTUAL de M1 seja exibido.
+ * Não bloqueia veredito: sem isso, M1 apenas não aparece.
+ */
+export const MIN_NEWCOMER_VIDEOS = 5;
+
+/**
+ * Critérios objetivos de qualidade da evidência.
+ * Só entram grandezas que sustentam a concentração — contagem de
+ * entrantes e inscritos ocultos passaram a ser contadores descritivos.
+ */
 export const EVIDENCE_CRITERIA = {
-  high: {
-    videos: 40,
-    newcomerVideos: 12,
-    maxUnclassifiableRatio: 0.15,
-    maxDiscardRatio: 0.1,
-    maxReachSpreadDecades: 1,
-  },
-  medium: {
-    videos: 25,
-    newcomerVideos: 8,
-    maxUnclassifiableRatio: 0.3,
-    maxDiscardRatio: 0.2,
-  },
+  high: { videos: 40, channels: 10, maxDiscardRatio: 0.1 },
+  medium: { videos: 25, channels: 6, maxDiscardRatio: 0.2 },
   low: {
     videos: MIN_SAMPLE.videos,
-    newcomerVideos: MIN_SAMPLE.newcomerVideos,
-    maxUnclassifiableRatio: 0.5,
+    channels: MIN_SAMPLE.distinctChannels,
     maxDiscardRatio: 0.5,
   },
+} as const;
+
+/**
+ * Reamostragem para o intervalo de incerteza da concentração.
+ *
+ * DETERMINÍSTICA POR CONSTRUÇÃO: os subconjuntos são enumerados por
+ * uma progressão modular sobre a amostra ordenada por videoId. Não há
+ * gerador pseudoaleatório nem semente — a mesma entrada produz sempre
+ * exatamente os mesmos subconjuntos, e nenhum valor é inventado:
+ * cada subconjunto contém apenas vídeos realmente observados.
+ */
+export const RESAMPLE = {
+  /** Subconjuntos avaliados. */
+  rounds: 400,
+  /** Fração da amostra em cada subconjunto, em milésimos. */
+  keepPerMille: 700,
+  /**
+   * Passos coprimos com o módulo. `strideA` precisa espalhar índices
+   * PEQUENOS por toda a faixa de resíduos: um passo próximo do módulo
+   * (ex.: 997 ≡ −3) agrupa os primeiros índices numa faixa estreita e
+   * produz subconjuntos tudo-ou-nada em vez de 70% da amostra.
+   * Com 371 a fração fica entre 0,67 e 0,76 para n de 21 a 79.
+   */
+  strideA: 371,
+  strideB: 131,
+  modulus: 1000,
 } as const;
 
 /** Faixas de exibição do score. O inteiro só ordena; a faixa comunica. */
@@ -119,34 +114,28 @@ export const SCORE_BANDS = [
 ] as const;
 
 /**
- * Intervalo mínimo entre duas leituras para que a variação
- * longitudinal seja reportada. Abaixo disso o ruído domina.
+ * Intervalo mínimo entre duas leituras para reportar variação
+ * longitudinal. Abaixo disso o ruído domina.
  */
 export const LONGITUDINAL_MIN_DAYS = 7;
 
-/** Snapshot dos parâmetros em uso, para exibir junto do resultado. */
+/** Snapshot dos parâmetros em uso, exibido junto do resultado. */
 export interface DecisionParameters {
   viewsFloor: number;
-  viewsTarget: number;
   newcomerMaxSubscribers: number;
-  supplyLow: number;
-  supplyHigh: number;
   windowMinAgeDays: number;
   windowMaxAgeDays: number;
-  tier: DecisionTier;
+  concentrationSaturated: number;
+  concentrationForYes: number;
 }
 
-export function currentParameters(
-  tier: DecisionTier = decisionTier()
-): DecisionParameters {
+export function currentParameters(): DecisionParameters {
   return {
     viewsFloor: viewsFloor(),
-    viewsTarget: viewsTarget(),
     newcomerMaxSubscribers: newcomerMaxSubscribers(),
-    supplyLow: supplyLow(),
-    supplyHigh: supplyHigh(),
     windowMinAgeDays: WINDOW_MIN_AGE_DAYS,
     windowMaxAgeDays: WINDOW_MAX_AGE_DAYS,
-    tier,
+    concentrationSaturated: VERDICT_LIMITS.concentrationSaturated,
+    concentrationForYes: VERDICT_LIMITS.concentrationForYes,
   };
 }

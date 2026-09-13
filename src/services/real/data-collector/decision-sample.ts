@@ -173,32 +173,12 @@ export function buildDecisionSample(input: {
 }
 
 /**
- * Pressão de oferta (M3): densidade de publicação em vídeos por 30 dias.
- *
- * Medida pelo INTERVALO que os resultados mais recentes cobrem — quanto
- * mais denso o tema, menor o intervalo. Formulado assim porque contar
- * "50 ÷ período" esbarra num teto aritmético que nunca alcança o divisor.
- *
- * Devolve null quando não há base para medir.
+ * NOTA: não existe medição de densidade de publicação ("pressão de
+ * oferta") neste motor. A investigação com dados reais mostrou que
+ * `search.list` com `order=date` devolve conjuntos truncados de forma
+ * opaca — 2 itens onde `order=relevance` devolve 50, para a mesma
+ * consulta e janela — e a truncagem é indetectável na resposta. Em 4 de
+ * 8 temas medidos a densidade resultante ficava abaixo do piso já
+ * comprovado pela própria amostra. Nenhuma coleta, campo ou chamada
+ * relacionada a essa métrica deve ser reintroduzida sem uma fonte nova.
  */
-export function computeSupplyPerMonth(
-  publishDates: readonly Date[],
-  now: Date,
-  pageSize = 50
-): number | null {
-  const valid = publishDates
-    .map((d) => d.getTime())
-    .filter((ms) => Number.isFinite(ms) && ms <= now.getTime());
-  if (valid.length === 0) return null;
-
-  const oldest = Math.min(...valid);
-  const spanDays = (now.getTime() - oldest) / MS_PER_DAY;
-  if (spanDays <= 0) return null;
-
-  // Página cheia: a densidade é o que o intervalo revela.
-  // Página incompleta: o intervalo é a janela inteira consultada.
-  if (valid.length >= pageSize) {
-    return (valid.length * 30) / spanDays;
-  }
-  return (valid.length * 30) / Math.max(spanDays, WINDOW_MAX_AGE_DAYS);
-}

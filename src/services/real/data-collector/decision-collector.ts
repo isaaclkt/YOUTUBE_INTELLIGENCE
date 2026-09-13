@@ -3,20 +3,15 @@ import "server-only";
 import type { LanguageCode, Topic } from "@/domain";
 import type { DecisionInput } from "@/services/decision/engine";
 import {
-  decisionTier,
   WINDOW_MAX_AGE_DAYS,
   WINDOW_MIN_AGE_DAYS,
 } from "@/services/decision/parameters";
-import {
-  buildDecisionSample,
-  computeSupplyPerMonth,
-} from "./decision-sample";
+import { buildDecisionSample } from "./decision-sample";
 import {
   createQuotaLedger,
   fetchChannels,
   fetchVideos,
   searchVideos,
-  type QuotaLedger,
 } from "./youtube-api";
 
 /**
@@ -26,9 +21,9 @@ import {
  * de API, o retorno traz `usedFallback: true` e amostra vazia — o
  * motor transforma isso em DADOS INSUFICIENTES, nunca num veredito.
  *
- * QUOTA
- *   tier "reduced" (padrão): 2 buscas (medium + long) ≈ 202u
- *   tier "full":             +2 buscas por data para M3 ≈ 402u
+ * QUOTA: 2 buscas (medium + long) + videos.list + channels.list ≈ 202u.
+ * Não há segunda rodada de buscas: a métrica de densidade de publicação
+ * foi descartada por não ser mensurável de forma defensável com esta API.
  */
 
 const RELEVANCE_LANGUAGE: Record<LanguageCode, string> = {
@@ -46,7 +41,8 @@ const LONGFORM_DURATIONS = ["medium", "long"] as const;
 /** Extremos da janela, arredondados para blocos de 12h (cache estável). */
 function windowBounds(now: Date): { after: string; before: string } {
   const block = 12 * 3_600_000;
-  const floorTo = (ms: number) => new Date(Math.floor(ms / block) * block).toISOString();
+  const floorTo = (ms: number) =>
+    new Date(Math.floor(ms / block) * block).toISOString();
   return {
     after: floorTo(now.getTime() - WINDOW_MAX_AGE_DAYS * MS_PER_DAY),
     before: floorTo(now.getTime() - WINDOW_MIN_AGE_DAYS * MS_PER_DAY),
@@ -58,46 +54,8 @@ function emptyInput(): DecisionInput {
     videos: [],
     rawCount: 0,
     discardedCount: 0,
-    supplyPerMonth: null,
     usedFallback: true,
   };
-}
-
-/** Mede a densidade de publicação — só no tier completo (+200u). */
-async function collectSupply(
-  topic: Topic,
-  bounds: { after: string; before: string },
-  apiKey: string,
-  ledger: QuotaLedger,
-  now: Date
-): Promise<number | null> {
-  const searches = await Promise.all(
-    LONGFORM_DURATIONS.map((videoDuration) =>
-      searchVideos(
-        {
-          query: topic.query,
-          relevanceLanguage: RELEVANCE_LANGUAGE[topic.language],
-          regionCode: topic.country,
-          order: "date",
-          publishedAfter: bounds.after,
-          publishedBefore: bounds.before,
-          videoDuration,
-        },
-        apiKey,
-        ledger
-      )
-    )
-  );
-
-  const dates = searches
-    .flatMap((response) => response.items ?? [])
-    .map((item) => item.snippet?.publishedAt)
-    .filter((iso): iso is string => Boolean(iso))
-    .map((iso) => new Date(iso))
-    .filter((date) => !Number.isNaN(date.getTime()));
-
-  // pageSize 100: duas páginas de 50 (medium + long).
-  return computeSupplyPerMonth(dates, now, 100);
 }
 
 export async function collectDecisionInput(
@@ -108,7 +66,6 @@ export async function collectDecisionInput(
 
   const now = new Date();
   const bounds = windowBounds(now);
-  const tier = decisionTier();
   const ledger = createQuotaLedger();
 
   try {
@@ -145,7 +102,6 @@ export async function collectDecisionInput(
         videos: [],
         rawCount: 0,
         discardedCount: 0,
-        supplyPerMonth: null,
         usedFallback: false,
       };
     }
@@ -170,14 +126,8 @@ export async function collectDecisionInput(
       now,
     });
 
-    // 3. Pressão de oferta: só no tier completo.
-    const supplyPerMonth =
-      tier === "full"
-        ? await collectSupply(topic, bounds, apiKey, ledger, now)
-        : null;
-
     console.info(
-      `[DecisionCollector] "${topic.query}" (${topic.language}/${topic.country}, tier ${tier}): ` +
+      `[DecisionCollector] "${topic.query}" (${topic.language}/${topic.country}): ` +
         `${sample.videos.length} vídeos na amostra de ${sample.rawCount} recebidos ` +
         `(${sample.discardedCount} inconsistentes, ${sample.filteredCount} fora do recorte). ` +
         `${ledger.units} unidades de quota, ${ledger.cacheHits} do cache.`
@@ -187,9 +137,7 @@ export async function collectDecisionInput(
       videos: sample.videos,
       rawCount: sample.rawCount,
       discardedCount: sample.discardedCount,
-      supplyPerMonth,
       usedFallback: false,
-      tier,
     };
   } catch (error) {
     console.warn(

@@ -3,9 +3,14 @@
  * MOTOR DE DECISÃO V2 — QUALIDADE DA EVIDÊNCIA
  *
  * Classificação ORDINAL, não percentual. Um percentual implicaria
- * um modelo probabilístico, que exigiria amostragem aleatória —
- * e a amostra vem ordenada pela relevância do YouTube, que é um
- * processo desconhecido. Só estatística descritiva é defensável.
+ * modelo probabilístico, que exigiria amostragem aleatória — e a
+ * amostra vem ordenada pela relevância do YouTube, um processo
+ * desconhecido. Só estatística descritiva é defensável.
+ *
+ * Os critérios cobrem apenas o que sustenta a CONCENTRAÇÃO, a única
+ * métrica decisiva. Contagem de entrantes e de inscritos ocultos
+ * passaram a ser contadores descritivos: não decidem nada, logo não
+ * podem impedir um veredito.
  * ============================================================
  */
 
@@ -13,22 +18,20 @@ import { EVIDENCE_CRITERIA, MIN_SAMPLE } from "./parameters";
 
 export type EvidenceQuality = "HIGH" | "MEDIUM" | "LOW" | "INSUFFICIENT";
 
-/** Contadores brutos que sustentam a classificação — sempre exibidos junto. */
+/** Contadores brutos exibidos junto da classificação. */
 export interface EvidenceCounters {
   /** Vídeos na amostra após todos os filtros (n). */
   sampleSize: number;
-  /** Vídeos de canais entrantes (n_E) — o n por trás de M1. */
-  newcomerCount: number;
-  /** Vídeos cujo canal não pôde ser classificado (n_U). */
-  unclassifiableCount: number;
-  /** Canais distintos na amostra (k). */
+  /** Canais distintos (k) — sustenta a concentração. */
   distinctChannels: number;
   /** Vídeos descartados pelo gate de validade. */
   discardedCount: number;
   /** Vídeos recebidos da API antes de qualquer filtro. */
   rawCount: number;
-  /** Dispersão das views dos entrantes, em ordens de grandeza. */
-  reachSpreadDecades: number | null;
+  /** Descritivo: vídeos de canais dentro do recorte de entrante. */
+  newcomerCount: number;
+  /** Descritivo: vídeos cujo canal não pôde ser classificado. */
+  unclassifiableCount: number;
   /** true quando qualquer insumo veio de fallback demonstrativo. */
   usedFallback: boolean;
 }
@@ -45,15 +48,14 @@ function ratio(part: number, whole: number): number {
 }
 
 /**
- * Classifica a evidência. A ordem importa: INSUFFICIENT é avaliada
- * primeiro e é terminal — nenhum veredito é emitido a partir dela.
+ * Classifica a evidência. INSUFFICIENT é avaliada primeiro e é
+ * terminal — nenhum veredito é emitido a partir dela.
  */
 export function assessEvidence(counters: EvidenceCounters): EvidenceAssessment {
   const reasons: string[] = [];
-  const unclassifiableRatio = ratio(counters.unclassifiableCount, counters.sampleSize);
   const discardRatio = ratio(counters.discardedCount, counters.rawCount);
 
-  // ---- INSUFFICIENT: qualquer uma destas impede recomendação ----
+  // ---- INSUFFICIENT ----
   if (counters.usedFallback) {
     reasons.push(
       "Algum insumo veio de dados demonstrativos — o motor não emite veredito sobre dado simulado."
@@ -64,19 +66,9 @@ export function assessEvidence(counters: EvidenceCounters): EvidenceAssessment {
       `Amostra de ${counters.sampleSize} vídeo(s) long-form na janela; mínimo ${MIN_SAMPLE.videos}.`
     );
   }
-  if (counters.newcomerCount < MIN_SAMPLE.newcomerVideos) {
-    reasons.push(
-      `Apenas ${counters.newcomerCount} vídeo(s) de canais entrantes; mínimo ${MIN_SAMPLE.newcomerVideos}.`
-    );
-  }
   if (counters.distinctChannels < MIN_SAMPLE.distinctChannels) {
     reasons.push(
       `Apenas ${counters.distinctChannels} canal(is) distinto(s); mínimo ${MIN_SAMPLE.distinctChannels}.`
-    );
-  }
-  if (unclassifiableRatio > EVIDENCE_CRITERIA.low.maxUnclassifiableRatio) {
-    reasons.push(
-      `${Math.round(unclassifiableRatio * 100)}% dos canais sem contagem de inscritos visível; limite ${Math.round(EVIDENCE_CRITERIA.low.maxUnclassifiableRatio * 100)}%.`
     );
   }
   if (discardRatio > EVIDENCE_CRITERIA.low.maxDiscardRatio) {
@@ -90,15 +82,10 @@ export function assessEvidence(counters: EvidenceCounters): EvidenceAssessment {
 
   // ---- HIGH ----
   const high = EVIDENCE_CRITERIA.high;
-  const spreadOk =
-    counters.reachSpreadDecades === null ||
-    counters.reachSpreadDecades <= high.maxReachSpreadDecades;
   if (
     counters.sampleSize >= high.videos &&
-    counters.newcomerCount >= high.newcomerVideos &&
-    unclassifiableRatio <= high.maxUnclassifiableRatio &&
-    discardRatio <= high.maxDiscardRatio &&
-    spreadOk
+    counters.distinctChannels >= high.channels &&
+    discardRatio <= high.maxDiscardRatio
   ) {
     return { quality: "HIGH", counters, reasons: [] };
   }
@@ -107,21 +94,15 @@ export function assessEvidence(counters: EvidenceCounters): EvidenceAssessment {
   const medium = EVIDENCE_CRITERIA.medium;
   if (
     counters.sampleSize >= medium.videos &&
-    counters.newcomerCount >= medium.newcomerVideos &&
-    unclassifiableRatio <= medium.maxUnclassifiableRatio &&
+    counters.distinctChannels >= medium.channels &&
     discardRatio <= medium.maxDiscardRatio
   ) {
-    if (!spreadOk) {
-      reasons.push(
-        `Views dos entrantes dispersas em ${counters.reachSpreadDecades} ordens de grandeza — a mediana descreve mal a amostra.`
-      );
-    }
     return { quality: "MEDIUM", counters, reasons };
   }
 
   // ---- LOW ----
   reasons.push(
-    `Amostra no limite inferior (${counters.sampleSize} vídeos, ${counters.newcomerCount} de entrantes) — insuficiente para afirmar oportunidade.`
+    `Amostra no limite inferior (${counters.sampleSize} vídeos, ${counters.distinctChannels} canais) — insuficiente para afirmar oportunidade.`
   );
   return { quality: "LOW", counters, reasons };
 }

@@ -2,15 +2,21 @@
  * ============================================================
  * MOTOR DE DECISÃO V2 — SCORE E VEREDITO
  *
- * Função pura: mesma entrada → mesma saída, sempre.
+ * Função pura: mesma entrada → mesma saída, sempre. Sem gerador
+ * pseudoaleatório em nenhum ponto do caminho decisório.
  *
- * Duas propriedades estruturais que diferenciam do motor anterior:
+ * Três propriedades estruturais:
+ *
  *  1. O VEREDITO NÃO DERIVA DO SCORE. O score ordena temas entre si;
- *     o veredito sai de condições interpretáveis sobre as métricas
- *     brutas, e o piso de views tem poder de veto sobre a média
- *     ponderada.
- *  2. Métrica ausente é `null` do início ao fim. Nada vira zero por
- *     conveniência, porque zero é uma afirmação e ausência não é.
+ *     o veredito sai de condições interpretáveis sobre a concentração.
+ *
+ *  2. A CONCENTRAÇÃO É A ÚNICA MÉTRICA DECISIVA. O alcance do entrante
+ *     é evidência contextual — a validação com dados reais mostrou que
+ *     ele mede sobretudo o porte dos canais devolvidos pela busca.
+ *
+ *  3. O SCORE ENCOLHE PARA O NEUTRO QUANDO A EVIDÊNCIA É FRACA. λ vem
+ *     da largura do intervalo de reamostragem da própria amostra, de
+ *     modo que score extremo exige sinal forte E intervalo estreito.
  * ============================================================
  */
 
@@ -24,25 +30,19 @@ import {
 } from "./evidence";
 import {
   computeConcentration,
-  computeReach,
-  computeSupplyPressure,
+  describeNewcomers,
   distinctChannelCount,
   newcomerVideos,
-  reachSpreadDecades,
   unclassifiableVideos,
-  type DecisionMetric,
+  type ConcentrationMetric,
   type DecisionVideo,
+  type NewcomerContext,
 } from "./metrics";
 import {
   currentParameters,
-  decisionTier,
   SCORE_BANDS,
   VERDICT_LIMITS,
-  viewsFloor,
-  viewsTarget,
-  WEIGHTS,
   type DecisionParameters,
-  type DecisionTier,
 } from "./parameters";
 
 export interface DecisionInput {
@@ -52,17 +52,8 @@ export interface DecisionInput {
   rawCount: number;
   /** Vídeos descartados pelo gate de validade. */
   discardedCount: number;
-  /** Vídeos por 30 dias; null quando o tier não mede. */
-  supplyPerMonth: number | null;
   /** true quando qualquer insumo veio de fallback demonstrativo. */
   usedFallback: boolean;
-  tier?: DecisionTier;
-}
-
-export interface DecisionMetrics {
-  reach: DecisionMetric;
-  concentration: DecisionMetric;
-  supplyPressure: DecisionMetric;
 }
 
 export interface DecisionResult {
@@ -71,9 +62,14 @@ export interface DecisionResult {
   opportunityScore: number | null;
   /** Rótulo ordinal — é assim que o score deve ser exibido. */
   scoreBand: string | null;
+  /** Fator de encolhimento aplicado ao score, 0–1. */
+  lambda: number | null;
   quality: EvidenceQuality;
   counters: EvidenceCounters;
-  metrics: DecisionMetrics;
+  /** Métrica DECISIVA. */
+  concentration: ConcentrationMetric;
+  /** Evidência CONTEXTUAL — não participa do score nem do veredito. */
+  newcomerContext: NewcomerContext;
   /** Por que este veredito, em linguagem natural. */
   reasons: string[];
   parameters: DecisionParameters;
@@ -87,31 +83,25 @@ function bandFor(score: number): string {
 }
 
 /**
- * Média ponderada das métricas disponíveis, com os pesos
- * renormalizados sobre o que existe. Devolve null se faltar
- * qualquer métrica obrigatória do tier.
+ * λ = 1 − largura do intervalo ÷ escala.
+ * Intervalo largo → λ baixo → score puxado para 50 (neutro).
+ */
+function shrinkFactor(band: { p5: number; p95: number } | null): number | null {
+  if (band === null) return null;
+  return Math.min(1, Math.max(0, 1 - (band.p95 - band.p5) / 100));
+}
+
+/**
+ * Score = sinal estrutural encolhido pela própria incerteza.
+ * Sinal bruto = 100 − concentração.
  */
 function computeScore(
-  metrics: DecisionMetrics,
-  tier: DecisionTier
+  concentration: ConcentrationMetric,
+  lambda: number | null
 ): number | null {
-  const reach = metrics.reach.value;
-  const concentration = metrics.concentration.value;
-  if (reach === null || concentration === null) return null;
-
-  if (tier === "full") {
-    const supply = metrics.supplyPressure.value;
-    if (supply === null) return null;
-    const w = WEIGHTS.full;
-    return Math.round(
-      w.reach * reach +
-        w.concentration * (100 - concentration) +
-        w.supply * (100 - supply)
-    );
-  }
-
-  const w = WEIGHTS.reduced;
-  return Math.round(w.reach * reach + w.concentration * (100 - concentration));
+  if (concentration.value === null || lambda === null) return null;
+  const rawSignal = 100 - concentration.value;
+  return Math.round(50 + (rawSignal - 50) * lambda);
 }
 
 /**
@@ -119,123 +109,112 @@ function computeScore(
  * A primeira que casar decide.
  */
 function computeVerdict(
-  metrics: DecisionMetrics,
-  evidence: EvidenceAssessment,
-  tier: DecisionTier
+  concentration: ConcentrationMetric,
+  evidence: EvidenceAssessment
 ): { verdict: Verdict; reasons: string[] } {
   // 1. Sem evidência não há recomendação.
   if (evidence.quality === "INSUFFICIENT") {
     return { verdict: "INSUFFICIENT_DATA", reasons: evidence.reasons };
   }
-
-  const reachRaw = metrics.reach.raw;
-  const concentration = metrics.concentration.value;
-  const supply = metrics.supplyPressure.value;
-
-  if (reachRaw === null || concentration === null) {
+  if (concentration.value === null) {
     return {
       verdict: "INSUFFICIENT_DATA",
       reasons: [
-        metrics.reach.unavailableReason,
-        metrics.concentration.unavailableReason,
-      ].filter((r): r is string => Boolean(r)),
+        concentration.unavailableReason ??
+          "Concentração não computável para esta amostra.",
+      ],
     };
   }
 
-  const floor = viewsFloor();
-  const target = viewsTarget();
-  const reasons: string[] = [];
+  const C = concentration.value;
+  const k = concentration.distinctChannels;
 
-  // 2. NÃO — o piso tem veto sobre a média ponderada.
-  if (reachRaw < floor) {
-    reasons.push(
-      `O vídeo mediano de canal entrante fez ${reachRaw.toLocaleString("pt-BR")} views, abaixo do piso de ${floor.toLocaleString("pt-BR")}.`
-    );
-    return { verdict: "NO", reasons };
-  }
-  if (concentration >= VERDICT_LIMITS.concentrationSaturated) {
-    reasons.push(
-      `Concentração de ${concentration}/100: os três maiores canais capturam a audiência do tema.`
-    );
-    return { verdict: "NO", reasons };
+  // 2. NÃO — os três maiores capturam a audiência do tema.
+  if (C >= VERDICT_LIMITS.concentrationSaturated) {
+    return {
+      verdict: "NO",
+      reasons: [
+        `Concentração de ${C}/100: os três maiores canais capturam a audiência deste tema.`,
+      ],
+    };
   }
 
-  // 3. SIM — exige atingir o alvo, concorrência contida e evidência ≥ Média.
-  const meetsTarget = reachRaw >= target;
-  const lowConcentration = concentration < VERDICT_LIMITS.concentrationForYes;
-  const supplyOk =
-    tier !== "full" || supply === null || supply < VERDICT_LIMITS.supplyForYes;
-
-  if (meetsTarget && lowConcentration && supplyOk) {
-    if (!isAtLeast(evidence.quality, "MEDIUM")) {
-      reasons.push(
-        `Os números atingiriam o alvo, mas a evidência é ${evidence.quality === "LOW" ? "baixa" : "insuficiente"} — o motor não afirma oportunidade sobre amostra fraca.`
-      );
-      return { verdict: "MAYBE", reasons };
+  // 3. SIM — exige que TODO o intervalo de incerteza fique abaixo do
+  //    limiar, não apenas a estimativa pontual, e evidência ≥ Média.
+  const band = concentration.band;
+  if (C < VERDICT_LIMITS.concentrationForYes) {
+    if (band !== null && band.p95 >= VERDICT_LIMITS.concentrationForYes) {
+      return {
+        verdict: "MAYBE",
+        reasons: [
+          `Concentração de ${C}/100 permitiria SIM, mas o intervalo da medição vai até ${band.p95} e cruza o limiar de ${VERDICT_LIMITS.concentrationForYes}.`,
+        ],
+      };
     }
-    reasons.push(
-      `O vídeo mediano de canal entrante fez ${reachRaw.toLocaleString("pt-BR")} views, no alvo de ${target.toLocaleString("pt-BR")}, com concentração de ${concentration}/100.`
-    );
-    return { verdict: "YES", reasons };
+    if (!isAtLeast(evidence.quality, "MEDIUM")) {
+      return {
+        verdict: "MAYBE",
+        reasons: [
+          `Concentração de ${C}/100 permitiria SIM, mas a evidência é baixa — o motor não afirma oportunidade sobre amostra fraca.`,
+          ...evidence.reasons,
+        ],
+      };
+    }
+    return {
+      verdict: "YES",
+      reasons: [
+        `Concentração de ${C}/100 entre ${k} canais${band ? ` (intervalo ${band.p5}–${band.p95})` : ""}: a audiência do tema não está capturada por poucos canais.`,
+      ],
+    };
   }
 
   // 4. TALVEZ
-  if (!meetsTarget) {
-    reasons.push(
-      `O vídeo mediano de canal entrante fez ${reachRaw.toLocaleString("pt-BR")} views: acima do piso de ${floor.toLocaleString("pt-BR")}, abaixo do alvo de ${target.toLocaleString("pt-BR")}.`
-    );
-  }
-  if (!lowConcentration) {
-    reasons.push(
-      `Concentração de ${concentration}/100 — o tema tem donos, ainda que não o dominem por completo.`
-    );
-  }
-  if (tier === "full" && supply !== null && supply >= VERDICT_LIMITS.supplyForYes) {
-    reasons.push(`Pressão de oferta de ${supply}/100: publica-se muito neste tema.`);
-  }
-  return { verdict: "MAYBE", reasons };
+  return {
+    verdict: "MAYBE",
+    reasons: [
+      `Concentração de ${C}/100: o tema tem donos, ainda que não o dominem por completo.`,
+    ],
+  };
 }
 
 /** Ponto de entrada do motor. Puro e determinístico. */
 export function decide(input: DecisionInput): DecisionResult {
-  const tier = input.tier ?? decisionTier();
   const videos = input.videos;
 
   const counters: EvidenceCounters = {
     sampleSize: videos.length,
-    newcomerCount: newcomerVideos(videos).length,
-    unclassifiableCount: unclassifiableVideos(videos).length,
     distinctChannels: distinctChannelCount(videos),
     discardedCount: input.discardedCount,
     rawCount: input.rawCount,
-    reachSpreadDecades: reachSpreadDecades(videos),
+    newcomerCount: newcomerVideos(videos).length,
+    unclassifiableCount: unclassifiableVideos(videos).length,
     usedFallback: input.usedFallback,
   };
 
-  const metrics: DecisionMetrics = {
-    reach: computeReach(videos),
-    concentration: computeConcentration(videos),
-    supplyPressure: computeSupplyPressure(
-      tier === "full" ? input.supplyPerMonth : null
-    ),
-  };
-
+  const concentration = computeConcentration(videos);
+  const newcomerContext = describeNewcomers(videos);
   const evidence = assessEvidence(counters);
-  const { verdict, reasons } = computeVerdict(metrics, evidence, tier);
+  const { verdict, reasons } = computeVerdict(concentration, evidence);
 
-  // Score só existe quando há veredito — um número sem evidência
-  // por trás é exatamente o que o V2 existe para não produzir.
+  const lambda = shrinkFactor(concentration.band);
+  // Score só existe quando há veredito — número sem evidência por trás
+  // é exatamente o que o V2 existe para não produzir.
   const score =
-    verdict === "INSUFFICIENT_DATA" ? null : computeScore(metrics, tier);
+    verdict === "INSUFFICIENT_DATA" ? null : computeScore(concentration, lambda);
 
   return {
     verdict,
     opportunityScore: score,
     scoreBand: score === null ? null : bandFor(score),
+    lambda: verdict === "INSUFFICIENT_DATA" ? null : lambda,
     quality: evidence.quality,
     counters,
-    metrics,
-    reasons: [...reasons, ...(verdict === "INSUFFICIENT_DATA" ? [] : evidence.reasons)],
-    parameters: currentParameters(tier),
+    concentration,
+    newcomerContext,
+    reasons: [
+      ...reasons,
+      ...(verdict === "INSUFFICIENT_DATA" ? [] : evidence.reasons),
+    ],
+    parameters: currentParameters(),
   };
 }

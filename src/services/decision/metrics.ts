@@ -3,19 +3,18 @@
  * MOTOR DE DECISÃO V2 — MÉTRICAS
  *
  * Funções puras. Sem rede, sem banco, sem aleatoriedade.
- * Cada métrica devolve `null` quando não é computável, em vez de
- * um valor de preenchimento — a ausência é informação e precisa
+ * Métrica não computável devolve `null` com motivo, em vez de um
+ * valor de preenchimento — a ausência é informação e precisa
  * chegar intacta ao veredito.
  * ============================================================
  */
 
 import {
+  MIN_NEWCOMER_VIDEOS,
   MIN_SAMPLE,
   newcomerMaxSubscribers,
-  supplyHigh,
-  supplyLow,
+  RESAMPLE,
   viewsFloor,
-  viewsTarget,
 } from "./parameters";
 
 /** Um vídeo da amostra, já aprovado pelos filtros de formato/idioma. */
@@ -29,30 +28,8 @@ export interface DecisionVideo {
   subscribers: number | null;
 }
 
-/**
- * Origem do número exibido:
- * "real"    contagem direta da API;
- * "derived" calculado a partir de contagens diretas;
- * "proxy"   mede um conceito vizinho ao que o nome sugere.
- */
-export type MetricKind = "real" | "derived" | "proxy";
-
-export interface DecisionMetric {
-  /** 0–100 normalizado, ou null quando não computável. */
-  value: number | null;
-  /** Valor na unidade natural (views, fração, vídeos/mês). */
-  raw: number | null;
-  kind: MetricKind;
-  /** Preenchido só quando `value` é null. */
-  unavailableReason?: string;
-}
-
 function clamp01(value: number): number {
   return Math.min(1, Math.max(0, value));
-}
-
-function round1(value: number): number {
-  return Math.round(value * 10) / 10;
 }
 
 /** Mediana de uma lista não vazia. Assume entrada já validada. */
@@ -64,29 +41,17 @@ export function median(values: readonly number[]): number {
     : sorted[mid]!;
 }
 
-/** Quantil por interpolação linear — usado só na dispersão da evidência. */
-function quantile(values: readonly number[], q: number): number {
+/** Quantil por interpolação linear sobre uma lista não vazia. */
+export function quantile(values: readonly number[], p: number): number {
   const sorted = [...values].sort((a, b) => a - b);
-  const pos = (sorted.length - 1) * q;
+  const pos = (sorted.length - 1) * p;
   const lo = Math.floor(pos);
   const hi = Math.ceil(pos);
   if (lo === hi) return sorted[lo]!;
   return sorted[lo]! + (sorted[hi]! - sorted[lo]!) * (pos - lo);
 }
 
-/**
- * Posição de `raw` na escala logarítmica entre duas âncoras.
- * Fora do intervalo satura em 0 ou 100 — deliberado: abaixo do piso
- * "quão abaixo" não muda a decisão, e acima do alvo idem.
- */
-export function normalizeLog(raw: number, low: number, high: number): number {
-  const lo = Math.log10(low + 1);
-  const hi = Math.log10(high + 1);
-  if (!(hi > lo)) return 0;
-  return Math.round(clamp01((Math.log10(raw + 1) - lo) / (hi - lo)) * 100);
-}
-
-/** Vídeos de canais classificados como entrantes. */
+/** Vídeos de canais dentro do recorte de entrante. */
 export function newcomerVideos(
   videos: readonly DecisionVideo[]
 ): DecisionVideo[] {
@@ -101,128 +66,199 @@ export function unclassifiableVideos(
   return videos.filter((v) => v.subscribers === null);
 }
 
-export function distinctChannelCount(
-  videos: readonly DecisionVideo[]
-): number {
+export function distinctChannelCount(videos: readonly DecisionVideo[]): number {
   return new Set(videos.map((v) => v.channelId)).size;
 }
 
-/**
- * M1 · ALCANCE DO ENTRANTE — PROXY declarado.
- *
- * Mede: as views que um canal sem autoridade efetivamente alcançou
- * neste tema dentro da janela. É proxy de demanda acessível, não
- * medição de procura do público — a API não expõe procura.
- */
-export function computeReach(videos: readonly DecisionVideo[]): DecisionMetric {
-  const sample = newcomerVideos(videos);
-  if (sample.length < MIN_SAMPLE.newcomerVideos) {
-    return {
-      value: null,
-      raw: null,
-      kind: "proxy",
-      unavailableReason: `Apenas ${sample.length} vídeo(s) de canais entrantes; mínimo ${MIN_SAMPLE.newcomerVideos}.`,
-    };
+// ==================== C · CONCENTRAÇÃO (decisiva) ====================
+
+export interface ConcentrationMetric {
+  /** 0–100, ou null quando não computável. */
+  value: number | null;
+  /** Fatia bruta dos 3 maiores canais, 0–1. */
+  topThreeShare: number | null;
+  /** Intervalo de incerteza por reamostragem determinística. */
+  band: { p5: number; p95: number } | null;
+  /** Canais distintos na amostra. */
+  distinctChannels: number;
+  unavailableReason?: string;
+}
+
+/** Núcleo do cálculo — usado também em cada subconjunto da reamostragem. */
+function concentrationOf(videos: readonly DecisionVideo[]): number | null {
+  const k = new Set(videos.map((v) => v.channelId)).size;
+  if (k < MIN_SAMPLE.distinctChannels) return null;
+
+  const viewsByChannel = new Map<string, number>();
+  for (const v of videos) {
+    viewsByChannel.set(
+      v.channelId,
+      (viewsByChannel.get(v.channelId) ?? 0) + v.views
+    );
   }
-  const raw = median(sample.map((v) => v.views));
-  return {
-    value: normalizeLog(raw, viewsFloor(), viewsTarget()),
-    raw: Math.round(raw),
-    kind: "proxy",
-  };
+  const total = [...viewsByChannel.values()].reduce((sum, v) => sum + v, 0);
+  if (total <= 0) return null;
+
+  const topThree = [...viewsByChannel.values()]
+    .sort((a, b) => b - a)
+    .slice(0, 3)
+    .reduce((sum, v) => sum + v, 0);
+  const baseline = 3 / k;
+  return clamp01((topThree / total - baseline) / (1 - baseline)) * 100;
 }
 
 /**
- * M2 · CONCENTRAÇÃO — derivada de contagens diretas.
+ * Subconjuntos DETERMINÍSTICOS de ~70% da amostra.
  *
- * Mede: o quanto a audiência do tema está capturada pelos 3 canais
- * de maior soma de views. A subtração de 3/k remove o artefato de
- * que, com poucos canais, o top-3 é trivialmente alto.
+ * Sem gerador pseudoaleatório e sem semente: a amostra é ordenada por
+ * videoId e cada rodada seleciona os índices que satisfazem uma
+ * progressão modular fixa. Mesma entrada → exatamente os mesmos
+ * subconjuntos, sempre. Nenhum dado é inventado: cada subconjunto
+ * contém apenas vídeos realmente observados.
+ */
+function deterministicSubsets(
+  videos: readonly DecisionVideo[]
+): DecisionVideo[][] {
+  const ordered = [...videos].sort((a, b) =>
+    a.videoId < b.videoId ? -1 : a.videoId > b.videoId ? 1 : 0
+  );
+  const subsets: DecisionVideo[][] = [];
+  for (let round = 0; round < RESAMPLE.rounds; round++) {
+    subsets.push(
+      ordered.filter(
+        (_, index) =>
+          (index * RESAMPLE.strideA + round * RESAMPLE.strideB) %
+            RESAMPLE.modulus <
+          RESAMPLE.keepPerMille
+      )
+    );
+  }
+  return subsets;
+}
+
+/**
+ * C · CONCENTRAÇÃO — métrica DECISIVA, derivada de contagens diretas.
+ *
+ * Mede: o quanto a audiência do tema está capturada pelos 3 canais de
+ * maior soma de views. A subtração de `3/k` remove o artefato de que,
+ * com poucos canais, o top-3 é trivialmente alto.
+ *
+ * Não lê contagem de inscritos — logo não depende de onde a faixa de
+ * "entrante" é traçada, e seu valor não é artefato de uma escolha de
+ * produto.
  */
 export function computeConcentration(
   videos: readonly DecisionVideo[]
-): DecisionMetric {
+): ConcentrationMetric {
   const k = distinctChannelCount(videos);
   if (k < MIN_SAMPLE.distinctChannels) {
     return {
       value: null,
-      raw: null,
-      kind: "derived",
-      unavailableReason: `Apenas ${k} canal(is) distinto(s); concentração não é interpretável abaixo de ${MIN_SAMPLE.distinctChannels}.`,
+      topThreeShare: null,
+      band: null,
+      distinctChannels: k,
+      unavailableReason: `Apenas ${k} canal(is) distinto(s); a concentração não é interpretável abaixo de ${MIN_SAMPLE.distinctChannels}.`,
+    };
+  }
+
+  const value = concentrationOf(videos);
+  if (value === null) {
+    return {
+      value: null,
+      topThreeShare: null,
+      band: null,
+      distinctChannels: k,
+      unavailableReason: "Amostra sem views acumuladas.",
     };
   }
 
   const viewsByChannel = new Map<string, number>();
   for (const v of videos) {
-    viewsByChannel.set(v.channelId, (viewsByChannel.get(v.channelId) ?? 0) + v.views);
+    viewsByChannel.set(
+      v.channelId,
+      (viewsByChannel.get(v.channelId) ?? 0) + v.views
+    );
   }
   const total = [...viewsByChannel.values()].reduce((sum, v) => sum + v, 0);
-  if (total <= 0) {
-    return {
-      value: null,
-      raw: null,
-      kind: "derived",
-      unavailableReason: "Amostra sem views acumuladas.",
-    };
-  }
-
-  const top3 = [...viewsByChannel.values()]
+  const topThree = [...viewsByChannel.values()]
     .sort((a, b) => b - a)
     .slice(0, 3)
     .reduce((sum, v) => sum + v, 0);
-  const share = top3 / total;
-  const baseline = 3 / k;
-  const excess = clamp01((share - baseline) / (1 - baseline));
+
+  const resampled = deterministicSubsets(videos)
+    .map(concentrationOf)
+    .filter((v): v is number => v !== null);
+
+  const band =
+    resampled.length >= 20
+      ? { p5: quantile(resampled, 0.05), p95: quantile(resampled, 0.95) }
+      : null;
 
   return {
-    value: Math.round(excess * 100),
-    raw: Math.round(share * 100) / 100,
-    kind: "derived",
+    value: Math.round(value),
+    topThreeShare: Math.round((topThree / total) * 100) / 100,
+    band: band
+      ? { p5: Math.round(band.p5), p95: Math.round(band.p95) }
+      : null,
+    distinctChannels: k,
   };
 }
 
+// ============ M1 · ALCANCE DO ENTRANTE (contextual) ============
+
 /**
- * M3 · PRESSÃO DE OFERTA — derivada de contagens diretas.
+ * M1 é EVIDÊNCIA CONTEXTUAL. Não entra no score nem no veredito.
  *
- * Mede: a densidade de publicação long-form no tema, em vídeos por
- * 30 dias. Entrada já calculada pelo coletor (a partir do intervalo
- * coberto pelos resultados mais recentes), porque depende de uma
- * chamada de API que esta camada não faz.
- *
- * `null` quando o tier reduzido não mediu — e null precisa
- * atravessar o score sem virar zero.
+ * É reportada apenas como o que os dados sustentam literalmente:
+ * quantos dos vídeos de canais pequenos ultrapassaram o piso de views.
+ * Não é convertida em afirmação sobre demanda do tema nem sobre
+ * potencial do entrante — a validação com dados reais mostrou que o
+ * porte do canal explica a maior parte da sua variação.
  */
-export function computeSupplyPressure(
-  supplyPerMonth: number | null
-): DecisionMetric {
-  if (supplyPerMonth === null || !Number.isFinite(supplyPerMonth)) {
+export interface NewcomerContext {
+  /** Vídeos de canais dentro do recorte de entrante. */
+  videos: number;
+  /** Quantos deles ultrapassaram o piso. */
+  aboveFloor: number;
+  /** aboveFloor ÷ videos, 0–100; null quando a amostra é pequena demais. */
+  sharePercent: number | null;
+  /** Mediana de views desses vídeos; null quando amostra pequena demais. */
+  medianViews: number | null;
+  /** Piso usado, para a frase ficar verificável. */
+  floor: number;
+  /** Dispersão das views, em ordens de grandeza entre Q1 e Q3. */
+  spreadDecades: number | null;
+}
+
+export function describeNewcomers(
+  videos: readonly DecisionVideo[]
+): NewcomerContext {
+  const sample = newcomerVideos(videos);
+  const floor = viewsFloor();
+  const aboveFloor = sample.filter((v) => v.views >= floor).length;
+
+  if (sample.length < MIN_NEWCOMER_VIDEOS) {
     return {
-      value: null,
-      raw: null,
-      kind: "derived",
-      unavailableReason: "Pressão de oferta não medida neste tier de coleta.",
+      videos: sample.length,
+      aboveFloor,
+      sharePercent: null,
+      medianViews: null,
+      floor,
+      spreadDecades: null,
     };
   }
-  return {
-    value: normalizeLog(supplyPerMonth, supplyLow(), supplyHigh()),
-    raw: round1(supplyPerMonth),
-    kind: "derived",
-  };
-}
 
-/**
- * Dispersão das views dos entrantes, em ordens de grandeza entre o
- * 1º e o 3º quartil. Alimenta a qualidade da evidência: um IQR que
- * cruza mais de uma década significa que a mediana não descreve
- * bem a amostra. Estatística descritiva — não é intervalo de
- * confiança, e a amostra não é aleatória.
- */
-export function reachSpreadDecades(
-  videos: readonly DecisionVideo[]
-): number | null {
-  const sample = newcomerVideos(videos).map((v) => v.views);
-  if (sample.length < MIN_SAMPLE.newcomerVideos) return null;
-  const q1 = quantile(sample, 0.25);
-  const q3 = quantile(sample, 0.75);
-  return round1(Math.log10(q3 + 1) - Math.log10(q1 + 1));
+  const views = sample.map((v) => v.views);
+  const q1 = quantile(views, 0.25);
+  const q3 = quantile(views, 0.75);
+
+  return {
+    videos: sample.length,
+    aboveFloor,
+    sharePercent: Math.round((aboveFloor / sample.length) * 100),
+    medianViews: Math.round(median(views)),
+    floor,
+    spreadDecades:
+      Math.round((Math.log10(q3 + 1) - Math.log10(q1 + 1)) * 10) / 10,
+  };
 }
