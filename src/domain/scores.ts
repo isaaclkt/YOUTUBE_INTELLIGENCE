@@ -18,5 +18,12 @@ export interface Scores {
   confidence: number;
 }
 
-/** Veredito derivado exclusivamente do Opportunity Score. */
-export type Verdict = "YES" | "MAYBE" | "NO";
+/**
+ * Veredito do motor.
+ *
+ * V2: deixa de derivar do Opportunity Score — sai de condições
+ * interpretáveis sobre as métricas brutas (ver services/decision).
+ * `INSUFFICIENT_DATA` é um desfecho de primeira classe, não um erro:
+ * sem evidência, o motor não recomenda.
+ */
+export type Verdict = "YES" | "MAYBE" | "NO" | "INSUFFICIENT_DATA";

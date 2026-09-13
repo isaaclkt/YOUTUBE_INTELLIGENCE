@@ -35,10 +35,16 @@ export function HistoryList({ items }: { items: AnalysisSummary[] }) {
               </p>
             </div>
             <div className="flex shrink-0 items-center gap-3">
-              <span className="text-sm font-semibold tabular-nums text-zinc-300">
-                {item.opportunityScore}
-                <span className="text-xs font-normal text-zinc-600">/100</span>
-              </span>
+              {/* Score ausente = veredito DADOS INSUFICIENTES: sem
+                  evidência não há número, e "0/100" seria uma afirmação. */}
+              {item.opportunityScore === null ? (
+                <span className="text-sm font-semibold text-zinc-600">—</span>
+              ) : (
+                <span className="text-sm font-semibold tabular-nums text-zinc-300">
+                  {item.opportunityScore}
+                  <span className="text-xs font-normal text-zinc-600">/100</span>
+                </span>
+              )}
               <VerdictBadge verdict={item.verdict} />
             </div>
           </Link>

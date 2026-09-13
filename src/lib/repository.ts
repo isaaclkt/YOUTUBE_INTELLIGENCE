@@ -25,11 +25,60 @@ export async function saveAnalysis(
       language: topic.language,
       country: topic.country,
       verdict: result.verdict,
-      opportunityScore: result.scores.opportunity,
+      // V2: null quando o veredito é INSUFFICIENT_DATA — sem evidência
+      // não há score, e gravar 0 seria afirmar algo que não foi medido.
+      opportunityScore: result.decision
+        ? result.decision.opportunityScore
+        : result.scores.opportunity,
       resultJson: JSON.stringify(result),
     },
   });
   return row.id;
+}
+
+// ============ Leituras de views (painel longitudinal) ============
+
+/**
+ * Grava a contagem de views observada agora para cada vídeo.
+ * Reler ids já conhecidos custa 1 unidade por 50 vídeos — é o insumo
+ * mais barato da API e a única fonte de velocidade real.
+ */
+export async function recordVideoReadings(
+  readings: ReadonlyArray<{ videoId: string; views: number }>
+): Promise<void> {
+  if (readings.length === 0) return;
+  await prisma.videoReading.createMany({
+    data: readings.map((r) => ({ videoId: r.videoId, views: r.views })),
+  });
+}
+
+/**
+ * Leitura ANTERIOR de cada vídeo — a mais recente gravada antes de
+ * `before`. Devolve só os vídeos que têm histórico; a ausência é
+ * reportada pela omissão, nunca por um valor de preenchimento.
+ */
+export async function getPreviousReadings(
+  videoIds: readonly string[],
+  before: Date
+): Promise<Map<string, { views: number; readAt: string }>> {
+  const result = new Map<string, { views: number; readAt: string }>();
+  if (videoIds.length === 0) return result;
+
+  const rows = await prisma.videoReading.findMany({
+    where: { videoId: { in: [...videoIds] }, readAt: { lt: before } },
+    orderBy: { readAt: "desc" },
+    select: { videoId: true, views: true, readAt: true },
+  });
+  for (const row of rows) {
+    // orderBy desc: o primeiro de cada vídeo é o mais recente.
+    if (!result.has(row.videoId)) {
+      result.set(row.videoId, {
+        views: row.views,
+        readAt: row.readAt.toISOString(),
+      });
+    }
+  }
+  return result;
 }
 
 export async function getAnalysis(id: string): Promise<Analysis | null> {
@@ -214,6 +263,7 @@ export async function listRecentAnalyses(
     language: row.language as LanguageCode,
     country: row.country as CountryCode,
     verdict: row.verdict as Verdict,
+    // null quando o veredito é INSUFFICIENT_DATA.
     opportunityScore: row.opportunityScore,
     createdAt: row.createdAt.toISOString(),
   }));

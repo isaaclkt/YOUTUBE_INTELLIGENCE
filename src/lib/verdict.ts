@@ -38,6 +38,61 @@ export const VERDICT_META: Record<
     textClass: "text-red-400",
     glowClass: "shadow-red-500/20",
   },
+  INSUFFICIENT_DATA: {
+    label: "DADOS INSUFICIENTES",
+    description:
+      "Não há evidência suficiente para recomendar nem desaconselhar este tema.",
+    badgeClass: "bg-zinc-500/15 text-zinc-300 ring-zinc-500/30",
+    barClass: "bg-zinc-600",
+    textClass: "text-zinc-300",
+    glowClass: "shadow-zinc-500/10",
+  },
+};
+
+/** Apresentação da qualidade da evidência (substitui a confiança em %). */
+export const EVIDENCE_META: Record<
+  "HIGH" | "MEDIUM" | "LOW" | "INSUFFICIENT",
+  { label: string; badgeClass: string }
+> = {
+  HIGH: {
+    label: "Evidência alta",
+    badgeClass: "bg-emerald-500/15 text-emerald-400 ring-emerald-500/30",
+  },
+  MEDIUM: {
+    label: "Evidência média",
+    badgeClass: "bg-amber-500/15 text-amber-400 ring-amber-500/30",
+  },
+  LOW: {
+    label: "Evidência baixa",
+    badgeClass: "bg-orange-500/15 text-orange-400 ring-orange-500/30",
+  },
+  INSUFFICIENT: {
+    label: "Evidência insuficiente",
+    badgeClass: "bg-zinc-500/15 text-zinc-400 ring-zinc-600/40",
+  },
+};
+
+/** Rótulo da origem de cada métrica — o usuário precisa distinguir. */
+export const METRIC_KIND_META: Record<
+  "real" | "derived" | "proxy",
+  { label: string; title: string; badgeClass: string }
+> = {
+  real: {
+    label: "real",
+    title: "Contagem direta da YouTube Data API.",
+    badgeClass: "bg-emerald-500/10 text-emerald-400 ring-emerald-500/25",
+  },
+  derived: {
+    label: "derivado",
+    title: "Calculado a partir de contagens diretas da API.",
+    badgeClass: "bg-sky-500/10 text-sky-400 ring-sky-500/25",
+  },
+  proxy: {
+    label: "proxy",
+    title:
+      "Mede um conceito vizinho ao nome: a API não expõe procura do público, então o alcance observado é usado como aproximação.",
+    badgeClass: "bg-violet-500/10 text-violet-300 ring-violet-500/25",
+  },
 };
 
 /** Apresentação dos vereditos do Verificador de Janela. */

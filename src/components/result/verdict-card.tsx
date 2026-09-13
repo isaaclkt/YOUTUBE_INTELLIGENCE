@@ -8,11 +8,22 @@ import { VerdictBadge } from "../verdict-badge";
 export function VerdictCard({
   verdict,
   scores,
+  /** Score do V2 e sua faixa. Quando ausentes, o card não exibe número. */
+  score,
+  scoreBand,
 }: {
   verdict: Verdict;
   scores: Scores;
+  score?: number | null;
+  scoreBand?: string | null;
 }) {
   const meta = VERDICT_META[verdict];
+  // V2: o score só aparece quando houve evidência para calculá-lo.
+  // Exibido em FAIXA, porque a resolução dos insumos não sustenta
+  // a precisão de um inteiro de 0 a 100.
+  const usesV2 = score !== undefined;
+  const showScore = usesV2 ? score !== null : true;
+  const legacyScore = scores.opportunity;
   return (
     <section
       className={`rounded-2xl border border-zinc-800 bg-zinc-900/60 p-6 shadow-xl ${meta.glowClass}`}
@@ -29,23 +40,35 @@ export function VerdictCard({
             {meta.description}
           </p>
         </div>
-        <div className="sm:text-right">
-          <p className="text-xs font-semibold uppercase tracking-widest text-zinc-500">
-            Opportunity Score
-          </p>
-          <p className={`mt-1 text-6xl font-bold tabular-nums ${meta.textClass}`}>
-            {scores.opportunity}
-            <span className="text-xl font-normal text-zinc-600">/100</span>
-          </p>
+        {showScore ? (
+          <div className="sm:text-right">
+            <p className="text-xs font-semibold uppercase tracking-widest text-zinc-500">
+              Oportunidade
+            </p>
+            {usesV2 ? (
+              <p className={`mt-1 text-3xl font-bold ${meta.textClass}`}>
+                {scoreBand}
+              </p>
+            ) : (
+              <p
+                className={`mt-1 text-6xl font-bold tabular-nums ${meta.textClass}`}
+              >
+                {legacyScore}
+                <span className="text-xl font-normal text-zinc-600">/100</span>
+              </p>
+            )}
+          </div>
+        ) : null}
+      </div>
+      {showScore ? (
+        <div className="mt-6">
+          <ScoreBar
+            value={usesV2 ? score! : legacyScore}
+            colorClass={meta.barClass}
+            heightClass="h-3"
+          />
         </div>
-      </div>
-      <div className="mt-6">
-        <ScoreBar
-          value={scores.opportunity}
-          colorClass={meta.barClass}
-          heightClass="h-3"
-        />
-      </div>
+      ) : null}
     </section>
   );
 }

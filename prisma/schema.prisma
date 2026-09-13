@@ -51,10 +51,27 @@ model Analysis {
   query            String
   language         String
   country          String
-  verdict          String // "YES" | "MAYBE" | "NO"
-  opportunityScore Int
+  verdict          String // "YES" | "MAYBE" | "NO" | "INSUFFICIENT_DATA"
+  // Null quando o veredito é INSUFFICIENT_DATA: sem evidência não há score.
+  opportunityScore Int?
   resultJson       String // AnalysisResult serializado (JSON)
   createdAt        DateTime @default(now())
 
   @@index([createdAt])
+}
+
+// Leituras sucessivas da contagem de views de um vídeo.
+// Reler videos.list de ids já conhecidos custa 1 unidade por 50 vídeos,
+// e é a única forma de obter velocidade REAL — views por dia entre duas
+// leituras, sem o viés de idade que contamina views÷tempo-desde-publicação.
+//
+// REGRA: alimenta apenas o indicador longitudinal exibido ao lado do
+// resultado. NUNCA entra no Opportunity Score nem no veredito.
+model VideoReading {
+  id        String   @id @default(cuid())
+  videoId   String
+  views     Int
+  readAt    DateTime @default(now())
+
+  @@index([videoId, readAt])
 }

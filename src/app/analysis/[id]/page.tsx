@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import { AnglesCard } from "@/components/result/angles-card";
+import { DecisionCard } from "@/components/result/decision-card";
 import { MarketsCard } from "@/components/result/markets-card";
 import { MetricsGrid } from "@/components/result/metrics-grid";
 import { OutlierTitlesCard } from "@/components/result/outlier-titles-card";
@@ -63,7 +64,19 @@ export default async function AnalysisPage(props: PageProps<"/analysis/[id]">) {
       </header>
 
       <div className="space-y-6">
-        <VerdictCard verdict={result.verdict} scores={result.scores} />
+        <VerdictCard
+          verdict={result.verdict}
+          scores={result.scores}
+          score={result.decision ? result.decision.opportunityScore : undefined}
+          scoreBand={result.decision?.scoreBand}
+        />
+
+        {result.decision ? (
+          <DecisionCard
+            decision={result.decision}
+            longitudinal={result.longitudinal}
+          />
+        ) : null}
 
         <MetricsGrid scores={result.scores} sources={result.metricSources} />
 
@@ -83,7 +96,10 @@ export default async function AnalysisPage(props: PageProps<"/analysis/[id]">) {
 
         <OutlierTitlesCard videos={result.sampleVideos ?? []} />
 
-        <RecommendationCard recommendation={result.recommendation} />
+        <RecommendationCard
+          recommendation={result.recommendation}
+          showConfidence={result.decision === undefined}
+        />
 
         <RawDataCard videos={result.sampleVideos ?? []} />
       </div>

@@ -72,10 +72,28 @@ export interface YouTubeVideo {
     channelTitle?: string;
     description?: string;
     tags?: string[];
+    /**
+     * Idioma declarado pelo criador. A quota é cobrada por CHAMADA,
+     * não por campo, então estes vêm sem custo adicional no mesmo
+     * `part=snippet` já solicitado. São opcionais: o criador pode
+     * não tê-los preenchido.
+     */
+    defaultAudioLanguage?: string;
+    defaultLanguage?: string;
+    /** Categoria oficial do YouTube — coerência temática da amostra. */
+    categoryId?: string;
+    /** "live" | "upcoming" | "none" — lives distorcem duração e views. */
+    liveBroadcastContent?: string;
   };
-  contentDetails?: { duration?: string };
+  contentDetails?: {
+    duration?: string;
+    /** true = conteúdo reivindicado por terceiro; sinal direto de não replicável. */
+    licensedContent?: boolean;
+  };
   status?: { madeForKids?: boolean };
   statistics?: { viewCount?: string; likeCount?: string; commentCount?: string };
+  /** URLs da Wikipédia; taxonomia grossa, serve para agrupar. */
+  topicDetails?: { topicCategories?: string[] };
 }
 
 interface YouTubeVideosResponse {
@@ -84,7 +102,8 @@ interface YouTubeVideosResponse {
 
 export interface YouTubeChannel {
   id?: string;
-  snippet?: { title?: string; publishedAt?: string };
+  /** `country` é o país declarado do canal — vem sem custo no mesmo part. */
+  snippet?: { title?: string; publishedAt?: string; country?: string };
   statistics?: {
     viewCount?: string;
     subscriberCount?: string;
@@ -147,6 +166,12 @@ export async function searchVideos(
     order: "relevance" | "date" | "viewCount";
     /** RFC 3339 — só vídeos publicados depois deste instante. */
     publishedAfter?: string;
+    /**
+     * RFC 3339 — fecha a janela de amostragem na própria API, em vez
+     * de filtrar depois. Sem isto, os 50 resultados podem cair todos
+     * fora da faixa de idade que o motor analisa.
+     */
+    publishedBefore?: string;
     /** Filtro de duração da API: short <4min, medium 4–20min, long >20min. */
     videoDuration?: "short" | "medium" | "long";
   },
@@ -164,6 +189,9 @@ export async function searchVideos(
   };
   if (options.publishedAfter) {
     params.publishedAfter = options.publishedAfter;
+  }
+  if (options.publishedBefore) {
+    params.publishedBefore = options.publishedBefore;
   }
   if (options.videoDuration) {
     params.videoDuration = options.videoDuration;
@@ -197,8 +225,10 @@ export async function fetchVideos(
     const response = await cachedGet<YouTubeVideosResponse>(
       "videos",
       {
-        // `status` traz o madeForKids sem custo extra de quota.
-        part: "statistics,snippet,contentDetails,status",
+        // A quota é por CHAMADA, não por part: todos estes campos
+        // vêm pelo mesmo 1 unidade. `status` traz madeForKids,
+        // `topicDetails` traz os tópicos do vídeo.
+        part: "statistics,snippet,contentDetails,status,topicDetails",
         id: group.join(","),
         maxResults: "50",
       },

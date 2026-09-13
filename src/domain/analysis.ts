@@ -1,3 +1,5 @@
+import type { DecisionResult } from "@/services/decision/engine";
+import type { LongitudinalIndicator } from "@/services/decision/longitudinal";
 import type { Market } from "./market";
 import type { Opportunity } from "./opportunity";
 import type { Recommendation } from "./recommendation";
@@ -24,6 +26,18 @@ export interface MetricSourceMap {
 export interface AnalysisResult {
   scores: Scores;
   verdict: Verdict;
+  /**
+   * MOTOR DE DECISÃO V2 — a fonte autoritativa do veredito.
+   * Ausente em análises gravadas antes do V2, onde `verdict` e
+   * `scores` do motor antigo continuam válidos para leitura.
+   */
+  decision?: DecisionResult;
+  /**
+   * Variação entre a leitura anterior e a atual das views da amostra.
+   * null quando não há histórico — a ausência NÃO afeta o veredito
+   * (RN-13), apenas suprime o indicador.
+   */
+  longitudinal?: LongitudinalIndicator | null;
   /**
    * Origem das métricas (selo "estimado" na UI). Opcional para
    * compatibilidade com análises persistidas antes deste campo.
@@ -65,6 +79,7 @@ export interface AnalysisSummary {
   language: LanguageCode;
   country: CountryCode;
   verdict: Verdict;
-  opportunityScore: number;
+  /** null quando o veredito é INSUFFICIENT_DATA. */
+  opportunityScore: number | null;
   createdAt: string;
 }

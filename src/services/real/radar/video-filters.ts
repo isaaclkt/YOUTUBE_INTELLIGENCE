@@ -10,15 +10,27 @@ import { LONGFORM_MIN_SECONDS, SHORTS_TITLE_TAG } from "@/lib/video-format";
 
 const SHORTS_TAG = SHORTS_TITLE_TAG;
 
-/** "PT1H2M30S" → segundos. 0 quando ausente/inválido. */
+/**
+ * "PT1H2M30S" → segundos. 0 quando ausente/inválido.
+ *
+ * Aceita o componente de DIAS ("P1DT2H30M"): a API usa esse formato
+ * para vídeos acima de 24h (lives longas, compilações estendidas), e
+ * sem ele o parser devolvia 0 e o vídeo era silenciosamente descartado
+ * do long-form.
+ */
 export function parseIsoDuration(iso: string | undefined): number {
   if (!iso) return 0;
-  const match = /^PT(?:(\d+)H)?(?:(\d+)M)?(?:(\d+)S)?$/.exec(iso);
+  // O separador "T" só existe quando há componentes de tempo: uma
+  // duração de dias inteiros é "P1D", sem T. Por isso o bloco de
+  // tempo inteiro é opcional.
+  const match =
+    /^P(?:(\d+)D)?(?:T(?:(\d+)H)?(?:(\d+)M)?(?:(\d+)S)?)?$/.exec(iso);
   if (!match) return 0;
-  const hours = Number(match[1] ?? 0);
-  const minutes = Number(match[2] ?? 0);
-  const seconds = Number(match[3] ?? 0);
-  return hours * 3600 + minutes * 60 + seconds;
+  const days = Number(match[1] ?? 0);
+  const hours = Number(match[2] ?? 0);
+  const minutes = Number(match[3] ?? 0);
+  const seconds = Number(match[4] ?? 0);
+  return days * 86400 + hours * 3600 + minutes * 60 + seconds;
 }
 
 /**
